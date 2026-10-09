@@ -52,7 +52,7 @@ function getFolderColor(title: string): string {
   if (t.includes("video")) return "#6750a4";
   if (t.includes("audio") || t.includes("music")) return "#006874";
   if (t.includes("photo") || t.includes("image") || t.includes("pic")) return "#1b6d2f";
-  if (t.includes("doc") || t.includes("text") || t.includes("pdf") || t.includes("file")) return "#005cbb";
+  if (t.includes("doc") || t.includes("text") || t.includes("pdf") || t.includes("file")) return "#0494f4";
   return "#7c5800";
 }
 
@@ -106,12 +106,12 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 space-y-1 scrollbar-thin">
-        {/* All Files (Root) — M3 nav: secondary-container for active */}
+        {/* All Files (Root) */}
         <button
           onClick={onBackToRoot}
           className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-full text-xs font-semibold transition-all cursor-pointer min-h-[48px] ${
             activeFolderId === null
-              ? "bg-md-secondary-container text-md-on-secondary-container"
+              ? "bg-[#0494f4] text-white shadow-xs font-bold"
               : "text-md-on-surface-variant hover:bg-md-surface-container-high"
           }`}
         >
@@ -126,28 +126,37 @@ export function Sidebar({
           <div className="px-3 text-[10px] font-bold uppercase tracking-widest text-md-on-surface-variant mb-2">
             Folders
           </div>
-          {folders.map((folder) => (
-            <button
-              key={folder.id}
-              onClick={() => onFolderClick(folder.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all cursor-pointer min-h-[44px] ${
-                activeFolderId === folder.id
-                  ? "bg-md-secondary-container text-md-on-secondary-container font-semibold"
-                  : "text-md-on-surface-variant hover:bg-md-surface-container-high"
-              }`}
-            >
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: `${getFolderColor(folder.title)}15`,
-                  color: getFolderColor(folder.title),
-                }}
+          {folders.map((folder) => {
+            const isActive = activeFolderId === folder.id;
+            return (
+              <button
+                key={folder.id}
+                onClick={() => onFolderClick(folder.id)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-medium transition-all cursor-pointer min-h-[44px] ${
+                  isActive
+                    ? "bg-[#0494f4] text-white font-bold shadow-xs"
+                    : "text-md-on-surface-variant hover:bg-md-surface-container-high"
+                }`}
               >
-                {getFolderIcon(folder.title)}
-              </div>
-              <span className="truncate">{folder.title}</span>
-            </button>
-          ))}
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                    isActive ? "bg-white/20 text-white" : ""
+                  }`}
+                  style={
+                    !isActive
+                      ? {
+                          backgroundColor: `${getFolderColor(folder.title)}15`,
+                          color: getFolderColor(folder.title),
+                        }
+                      : undefined
+                  }
+                >
+                  {getFolderIcon(folder.title)}
+                </div>
+                <span className="truncate">{folder.title}</span>
+              </button>
+            );
+          })}
 
           {folders.length === 0 && (
             <div className="px-4 py-6 text-center select-none">

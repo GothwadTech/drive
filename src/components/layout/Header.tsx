@@ -117,30 +117,25 @@ export function Header({
           </button>
         )}
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 select-none">
-          <svg className="w-7 h-7 sm:w-9 sm:h-9 shrink-0" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="header-logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#24A1DE" />
-                <stop offset="100%" stopColor="#4F46E5" />
-              </linearGradient>
-              <linearGradient id="header-logo-cloud" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#E0E7FF" stopOpacity="0.85" />
-              </linearGradient>
-            </defs>
-            <circle cx="64" cy="64" r="60" fill="url(#header-logo-bg)" />
-            <circle cx="64" cy="64" r="56" fill="none" stroke="#FFFFFF" strokeOpacity="0.15" strokeWidth="2.5" />
-            <path d="M42 80c-5.52 0-10-4.48-10-10 0-4.88 3.5-8.94 8.2-9.82C41.4 51.78 49.38 46 58.5 46c8.07 0 15.22 4.45 18 11.02 1.34-.63 2.85-.98 4.45-.98 5.52 0 10 4.48 10 10s-4.48 10-10 10H42z" fill="url(#header-logo-cloud)" />
-            <path d="M51 68l24-15.5L46.5 61l.5 9.5 4-2.5z" fill="#24A1DE" />
-            <path d="M75 52.5L46.5 61l15.5 5.5 13-14z" fill="#38BDF8" />
-          </svg>
-          <div className="min-w-0 truncate hidden sm:block">
-            <h1 className="text-xs sm:text-sm font-bold gradient-text leading-tight flex items-center gap-1 truncate">
-              Gothwad Drive
+        {/* Logo & Brand */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 select-none">
+          <img
+            src="/icon-192.png"
+            alt="Gothwad Drive"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-contain shadow-xs shrink-0"
+            onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              if (!target.src.includes("favicon.ico")) {
+                target.src = "/favicon.ico";
+              }
+            }}
+          />
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-bold text-md-on-surface leading-tight flex items-center gap-1 truncate">
+              <span className="text-[#0494f4]">Gothwad</span>
+              <span className="hidden xs:inline">Drive</span>
             </h1>
-            <p className="text-[10px] text-md-on-surface-variant leading-tight font-medium truncate">
+            <p className="text-[9px] sm:text-[10px] text-md-on-surface-variant leading-tight font-medium truncate hidden md:block">
               {driveTitle === "Gothwad Drive" || driveTitle === "Clash Drive" || driveTitle === "TG Cloud Drive" ? "Telegram Cloud Storage" : driveTitle}
             </p>
           </div>
@@ -346,7 +341,7 @@ export function Header({
                     }}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer min-h-[40px] ${
                       theme === t.id
-                        ? "bg-md-secondary-container text-md-on-secondary-container font-semibold"
+                        ? "bg-[#0494f4] text-white font-semibold shadow-xs"
                         : "text-md-on-surface hover:bg-md-surface-container-high"
                     }`}
                   >

@@ -31,12 +31,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
           <input
             ref={ref}
-            className={`w-full bg-md-surface-container-lowest border rounded-xl px-4 py-3 text-sm text-md-on-surface placeholder:text-md-outline focus:outline-none transition-all duration-200 ${
+            className={`w-full bg-white dark:bg-[#1e1e1e] border rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none transition-all duration-200 ${
               focused
-                ? "border-md-primary ring-2 ring-md-primary/15"
-                : "border-md-outline-variant"
+                ? "border-[#0494f4] ring-2 ring-[#0494f4]/20"
+                : "border-gray-200 dark:border-[#383838]"
             } ${icon ? "pl-11" : ""} ${
-              error ? "border-md-error focus:border-md-error focus:ring-md-error/15" : ""
+              error ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
             } ${className}`}
             onFocus={(e) => {
               setFocused(true);

@@ -54,14 +54,14 @@ export function MoveCopyModal({
       title={isBatch ? `${mode === "move" ? "Move" : "Copy"} ${files.length} Files` : `${mode === "move" ? "Move" : "Copy"} "${singleFile.name}"`}
     >
       <div className="space-y-4 select-none">
-        {/* M3 Segmented Tabs */}
-        <div className="flex bg-md-surface-container-high p-1 rounded-full border border-md-outline-variant/20">
+        {/* Segmented Tabs */}
+        <div className="flex bg-gray-100 dark:bg-[#333333] p-1 rounded-full border border-gray-200 dark:border-[#404040]">
           <button
             onClick={() => setMode("move")}
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               mode === "move"
-                ? "bg-md-surface-container-lowest text-md-primary font-bold shadow-sm"
-                : "text-md-on-surface-variant hover:text-md-on-surface"
+                ? "bg-[#0494f4] text-white font-bold shadow-xs"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -73,8 +73,8 @@ export function MoveCopyModal({
             onClick={() => setMode("copy")}
             className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               mode === "copy"
-                ? "bg-md-surface-container-lowest text-md-primary font-bold shadow-sm"
-                : "text-md-on-surface-variant hover:text-md-on-surface"
+                ? "bg-[#0494f4] text-white font-bold shadow-xs"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -101,32 +101,32 @@ export function MoveCopyModal({
                   onClick={() => setSelectedFolderId(folder.id)}
                   className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all cursor-pointer border ${
                     isSelected
-                      ? "bg-md-secondary-container border-transparent text-md-on-secondary-container"
+                      ? "bg-[#0494f4]/15 border-[#0494f4] text-[#0494f4] font-semibold"
                       : isCurrent
-                      ? "bg-md-surface-container/50 border-md-outline-variant/30 opacity-70"
-                      : "bg-md-surface-container border-md-outline-variant/20 hover:bg-md-surface-container-high"
+                      ? "bg-gray-100/50 dark:bg-[#2c2c2c]/50 border-gray-200/40 dark:border-white/5 opacity-70"
+                      : "bg-gray-50 dark:bg-[#282828] border-gray-200 dark:border-[#383838] hover:bg-gray-100 dark:hover:bg-[#333333]"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs ${
-                      isSelected ? "bg-md-primary text-md-on-primary" : "bg-md-primary-container text-md-on-primary-container"
+                      isSelected ? "bg-[#0494f4] text-white" : "bg-[#0494f4]/15 text-[#0494f4]"
                     }`}>
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                       </svg>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate text-md-on-surface">
+                      <p className="text-xs font-semibold truncate text-gray-900 dark:text-white">
                         {folder.title}
                       </p>
                       {isCurrent && (
-                        <span className="text-[9.5px] text-md-on-surface-variant font-medium">Current location</span>
+                        <span className="text-[9.5px] text-gray-500 dark:text-gray-400 font-medium">Current location</span>
                       )}
                     </div>
                   </div>
 
                   {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-md-primary text-md-on-primary flex items-center justify-center shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-[#0494f4] text-white flex items-center justify-center shrink-0">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>

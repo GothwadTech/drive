@@ -17,7 +17,7 @@ export function TopicList({
 }: TopicListProps) {
   const folderColors = [
     "#6750a4", // Primary purple
-    "#005cbb", // Primary blue
+    "#0494f4", // Primary blue (#0494f4)
     "#1b6d2f", // Success green
     "#7c5800", // Warning amber
     "#ba1a1a", // Error red
@@ -37,19 +37,19 @@ export function TopicList({
           <div
             key={folder.id}
             onClick={() => onFolderClick(folder.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-[8px] cursor-pointer transition-all duration-200 shrink-0 border select-none min-h-[32px] ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl cursor-pointer transition-all duration-200 shrink-0 border select-none min-h-[32px] ${
               isActive
-                ? "bg-md-secondary-container border-transparent text-md-on-secondary-container"
-                : "bg-md-surface-container-low border-md-outline-variant hover:bg-md-surface-container-high"
+                ? "bg-[#0494f4] border-[#0494f4] text-white shadow-xs font-semibold"
+                : "bg-white dark:bg-[#282828] border-gray-200 dark:border-[#383838] text-gray-700 dark:text-gray-300 hover:border-[#0494f4]/40"
             }`}
           >
             <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: isActive ? "var(--md-on-secondary-container)" : themeColor }}
+              className={`w-2 h-2 rounded-full shrink-0 ${isActive ? "bg-white" : ""}`}
+              style={!isActive ? { backgroundColor: themeColor } : undefined}
             />
             
-            <span className={`text-xs font-medium tracking-tight ${
-              isActive ? "text-md-on-secondary-container" : "text-md-on-surface-variant"
+            <span className={`text-xs tracking-tight ${
+              isActive ? "text-white font-bold" : "text-gray-700 dark:text-gray-300"
             }`}>
               {folder.title}
             </span>
@@ -62,8 +62,8 @@ export function TopicList({
                 }}
                 className={`p-1 rounded-full transition-all cursor-pointer ${
                   isActive 
-                    ? "hover:bg-md-on-secondary-container/10 text-md-on-secondary-container/70 hover:text-md-on-secondary-container" 
-                    : "hover:bg-md-surface-container-highest text-md-outline hover:text-md-primary"
+                    ? "hover:bg-white/20 text-white/80 hover:text-white" 
+                    : "hover:bg-gray-100 dark:hover:bg-[#333333] text-gray-400 hover:text-[#0494f4]"
                 }`}
                 title="Rename folder"
               >
@@ -78,8 +78,8 @@ export function TopicList({
                 }}
                 className={`p-1 rounded-full transition-all cursor-pointer ${
                   isActive 
-                    ? "hover:bg-md-on-secondary-container/10 text-md-on-secondary-container/70 hover:text-md-on-secondary-container" 
-                    : "hover:bg-md-error-container text-md-outline hover:text-md-error"
+                    ? "hover:bg-white/20 text-white/80 hover:text-white" 
+                    : "hover:bg-red-500/10 text-gray-400 hover:text-red-500"
                 }`}
                 title="Delete folder"
               >

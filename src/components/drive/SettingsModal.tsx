@@ -310,7 +310,7 @@ export function SettingsModal({
                       onClick={() => setTheme(item.id as Theme)}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2.5 border transition-all cursor-pointer ${
                         theme === item.id
-                          ? "bg-md-secondary-container text-md-on-secondary-container border-transparent font-semibold"
+                          ? "bg-[#0494f4] text-white border-[#0494f4] shadow-md shadow-[#0494f4]/25 font-bold"
                           : "bg-md-surface-container border-md-outline-variant/20 text-md-on-surface hover:bg-md-surface-container-high"
                       }`}
                     >

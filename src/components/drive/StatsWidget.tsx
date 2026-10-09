@@ -52,21 +52,21 @@ export function StatsWidget({ files, indexing, indexingProgress }: StatsWidgetPr
     return (
       <div 
         onClick={toggleCollapsed}
-        className="px-4 py-3 bg-md-surface-container rounded-2xl border border-md-outline-variant/20 select-none cursor-pointer hover:bg-md-surface-container-high transition-all duration-200 flex items-center justify-between"
+        className="px-4 py-3 bg-white dark:bg-[#282828] rounded-2xl border border-gray-200 dark:border-[#383838] select-none cursor-pointer hover:bg-gray-50 dark:hover:bg-[#333333] transition-all duration-200 flex items-center justify-between"
       >
         <div className="flex flex-col min-w-0">
-          <span className="text-[9px] font-medium text-md-on-surface-variant uppercase tracking-wider">Storage</span>
-          <span className="text-sm font-bold text-md-on-surface tracking-tight">{formatBytes(totalSize)}</span>
+          <span className="text-[9px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Storage</span>
+          <span className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">{formatBytes(totalSize)}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {indexing ? (
-            <span className="text-[9px] text-md-tertiary animate-pulse font-medium">
+            <span className="text-[9px] text-[#0494f4] animate-pulse font-medium">
               Indexing...
             </span>
           ) : (
-            <span className="text-[10px] text-md-on-surface-variant font-medium font-mono bg-md-surface-container-high px-1.5 py-0.5 rounded">{totalFiles} files</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium font-mono bg-gray-100 dark:bg-[#333333] px-1.5 py-0.5 rounded">{totalFiles} files</span>
           )}
-          <svg className="w-3.5 h-3.5 text-md-on-surface-variant transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className="w-3.5 h-3.5 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
@@ -75,7 +75,7 @@ export function StatsWidget({ files, indexing, indexingProgress }: StatsWidgetPr
   }
 
   return (
-    <div className="space-y-4 px-4 py-4 bg-md-surface-container rounded-[20px] border border-md-outline-variant/20 select-none">
+    <div className="space-y-4 px-4 py-4 bg-white dark:bg-[#282828] rounded-[20px] border border-gray-200 dark:border-[#383838] select-none">
       <div 
         onClick={toggleCollapsed}
         className="flex items-center justify-between cursor-pointer group"

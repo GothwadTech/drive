@@ -20,6 +20,14 @@ export function Modal({
   const [closing, setClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, 220);
+  };
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
@@ -43,14 +51,6 @@ export function Modal({
     if (focusable.length > 0) focusable[0].focus();
   }, [open]);
 
-  const handleClose = () => {
-    setClosing(true);
-    setTimeout(() => {
-      setClosing(false);
-      onClose();
-    }, 220);
-  };
-
   if (!open && !closing) return null;
 
   const sizeClasses: Record<string, string> = {
@@ -70,10 +70,10 @@ export function Modal({
         style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
         onClick={handleClose}
       />
-      {/* M3 Dialog: 28px radius, surface-container-high bg */}
+      {/* M3 Dialog: 28px radius */}
       <div
         ref={modalRef}
-        className={`relative bg-md-surface-container-high rounded-[28px] ${noPadding ? "p-0 overflow-hidden" : "p-6 overflow-y-auto scrollbar-thin"} w-full ${sizeClasses[size]} mx-auto border border-md-outline-variant/20 max-h-[90vh] ${closing ? "animate-spring-out" : "animate-spring-in"}`}
+        className={`relative bg-white dark:bg-[#282828] rounded-[28px] ${noPadding ? "p-0 overflow-hidden" : "p-6 overflow-y-auto scrollbar-thin"} w-full ${sizeClasses[size]} mx-auto border border-gray-200 dark:border-[#383838] max-h-[90vh] ${closing ? "animate-spring-out" : "animate-spring-in"}`}
         style={{ boxShadow: "var(--md-elevation-3)" }}
       >
         {title && (

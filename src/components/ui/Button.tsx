@@ -50,21 +50,21 @@ export function Button({
 
   // M3 buttons: label-large (font-semibold), rounded-[20px] for standard, rounded-full for icon/FAB
   const base =
-    "relative inline-flex items-center justify-center font-semibold rounded-[20px] transition-all duration-200 ease-out cursor-pointer select-none focus:outline-none focus-visible:ring-3 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] overflow-hidden";
+    "relative inline-flex items-center justify-center font-semibold rounded-[20px] transition-all duration-200 ease-out cursor-pointer select-none focus:outline-none focus-visible:ring-3 focus-visible:ring-[#0494f4]/40 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] overflow-hidden";
 
   const variants: Record<string, string> = {
     primary:
-      "bg-md-primary text-md-on-primary hover:shadow-md active:brightness-95 border border-transparent",
+      "bg-[#0494f4] hover:bg-[#0383d8] text-white shadow-sm shadow-[#0494f4]/25 active:brightness-95 border border-transparent",
     secondary:
-      "bg-md-secondary-container text-md-on-secondary-container hover:shadow-sm border border-transparent",
+      "bg-gray-100 hover:bg-gray-200 dark:bg-[#2c2c2c] dark:hover:bg-[#363636] text-gray-800 dark:text-gray-100 hover:shadow-sm border border-transparent",
     ghost:
-      "bg-transparent text-md-on-surface-variant hover:bg-md-surface-container-high active:bg-md-surface-container-highest",
+      "bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#2c2c2c] active:bg-gray-200 dark:active:bg-[#363636]",
     danger:
-      "bg-md-error-container text-md-on-error-container border border-transparent hover:shadow-sm",
+      "bg-red-500 hover:bg-red-600 text-white border border-transparent hover:shadow-sm",
     glass:
-      "bg-md-surface-container text-md-on-surface border border-md-outline-variant hover:bg-md-surface-container-high",
+      "bg-white/80 dark:bg-[#262626]/80 text-gray-900 dark:text-white border border-gray-200 dark:border-[#383838] hover:bg-white dark:hover:bg-[#2c2c2c]",
     icon:
-      "bg-transparent text-md-on-surface-variant hover:bg-md-surface-container-highest rounded-full p-0 border border-transparent",
+      "bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#2c2c2c] rounded-full p-0 border border-transparent",
   };
 
   const sizes: Record<string, string> = {

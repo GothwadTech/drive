@@ -228,9 +228,9 @@ export function FileGrid({
                 {label}
               </h3>
               <div className={
-                gridBoxSize === "small" ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3" :
-                gridBoxSize === "medium" ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 gap-3.5" :
-                "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4"
+                gridBoxSize === "small" ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3" :
+                gridBoxSize === "medium" ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3.5" :
+                "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
               }>
                 {sectionFiles.map((file, idx) => {
                   const isSelected = selectedFileIds.has(file.id);
@@ -245,10 +245,10 @@ export function FileGrid({
 
                   const titleTextSize = 
                     gridBoxSize === "small" ? "text-[11px]" :
-                    gridBoxSize === "medium" ? "text-[11px] font-extrabold" : "text-xs font-black";
+                    gridBoxSize === "medium" ? "text-[11px] font-bold" : "text-xs font-bold";
 
                   const metaRowClass = 
-                    gridBoxSize === "small" ? "hidden" : "flex items-center justify-between mt-1 h-4.5 text-[10px] text-surface-600 dark:text-surface-500 font-bold tracking-tight relative";
+                    gridBoxSize === "small" ? "hidden" : "flex items-center justify-between mt-1 h-4.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-tight relative";
 
                   const checkBtnSize = 
                     gridBoxSize === "small" ? "w-5 h-5" : "w-5.5 h-5.5";
@@ -269,10 +269,10 @@ export function FileGrid({
                   return (
                     <div
                       key={file.id}
-                      className={`group relative bg-surface-100/80 dark:bg-surface-200/20 backdrop-blur-xl ${cardRoundClass} ${cardPadding} flex flex-col justify-between transition-all duration-300 ease-out border select-none cursor-pointer hover:shadow-xl hover:shadow-brand-500/5 hover:-translate-y-1 ${
+                      className={`group relative bg-white dark:bg-[#282828] ${cardRoundClass} ${cardPadding} flex flex-col justify-between transition-all duration-200 ease-out border select-none cursor-pointer hover:shadow-md hover:shadow-black/5 dark:hover:shadow-black/30 hover:-translate-y-0.5 ${
                         isSelected
-                          ? "border-brand-500 ring-2 ring-brand-500/30 bg-brand-500/5"
-                          : "border-surface-300/40 dark:border-surface-300/10 hover:border-brand-500/40"
+                          ? "border-[#0494f4] ring-2 ring-[#0494f4]/30 bg-[#0494f4]/5"
+                          : "border-gray-200 dark:border-[#383838] hover:border-[#0494f4]/50"
                       }`}
                       style={{ animationDelay: `${Math.min((startIdx + idx) * 15, 250)}ms` }}
                       onClick={() => onPreview(file)}
