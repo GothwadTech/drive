@@ -1,29 +1,46 @@
 declare const Bun: any;
 
 /**
- * Retrieve Telegram MTProto API credentials dynamically from localStorage or native Bun.env.
+ * Default Telegram MTProto Web API credentials (Telegram Web official app)
+ * Used when custom environment variables are not provided.
+ */
+export const DEFAULT_TELEGRAM_API_ID = 2496;
+export const DEFAULT_TELEGRAM_API_HASH = "8c8f27945744dd701700676451e9389f";
+
+/**
+ * Retrieve Telegram MTProto API credentials dynamically from env, localStorage or standard defaults.
  */
 export function getApiCredentials(): { apiId: number; apiHash: string } {
   let envApiId: string | undefined;
   let envApiHash: string | undefined;
 
-  if (typeof Bun !== "undefined" && Bun.env) {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.env) {
+      envApiId = import.meta.env.VITE_TELEGRAM_API_ID;
+      envApiHash = import.meta.env.VITE_TELEGRAM_API_HASH;
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!envApiId && typeof Bun !== "undefined" && Bun.env) {
     envApiId = Bun.env.VITE_TELEGRAM_API_ID || Bun.env.TELEGRAM_API_ID;
     envApiHash = Bun.env.VITE_TELEGRAM_API_HASH || Bun.env.TELEGRAM_API_HASH;
   }
 
-  const idStr = localStorage.getItem("tgcd_api_id") || envApiId || "";
-  const hash = localStorage.getItem("tgcd_api_hash") || envApiHash || "";
+  const idStr = envApiId || localStorage.getItem("tgcd_api_id") || "";
+  const hash = envApiHash || localStorage.getItem("tgcd_api_hash") || "";
+
   return {
-    apiId: idStr ? parseInt(idStr, 10) : 0,
-    apiHash: hash,
+    apiId: idStr ? parseInt(idStr, 10) : DEFAULT_TELEGRAM_API_ID,
+    apiHash: hash || DEFAULT_TELEGRAM_API_HASH,
   };
 }
 
 /**
  * Client Identification for Telegram Active Sessions screen
  */
-export const DEVICE_MODEL = "ClashDrive";
+export const DEVICE_MODEL = "GothwadDrive";
 export const APP_VERSION = "2.0";
 export const SYSTEM_VERSION = typeof navigator !== "undefined" && navigator.userAgent
   ? (navigator.userAgent.includes("Windows") ? "Windows" : navigator.userAgent.includes("Mac") ? "macOS" : navigator.userAgent.includes("Linux") ? "Linux" : "Web")
@@ -38,7 +55,7 @@ export const DRIVE_SIGNATURE = "#TgCloudDrive_v1";
 /**
  * Default supergroup title when auto-creating.
  */
-export const DEFAULT_DRIVE_TITLE = "Clash Drive";
+export const DEFAULT_DRIVE_TITLE = "Gothwad Drive";
 
 /**
  * Chunk size for file splitting (50 MB).

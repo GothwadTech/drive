@@ -8,10 +8,10 @@ import type { AuthState } from "../../types";
 interface AuthWizardProps {
   state: AuthState;
   onPhoneSubmit: (phone: string) => void;
-  onCredentialsSubmit: (apiId: number, apiHash: string) => void;
+  onCredentialsSubmit?: (apiId: number, apiHash: string) => void;
   onOtpSubmit: (code: string) => void;
   onPasswordSubmit: (password: string) => void;
-  onBackToCredentials: () => void;
+  onBackToCredentials?: () => void;
 }
 
 export function AuthWizard({
@@ -22,6 +22,11 @@ export function AuthWizard({
   onPasswordSubmit,
   onBackToCredentials,
 }: AuthWizardProps) {
+  const isCredentialsStep = state.step === "credentials";
+  const displaySteps = isCredentialsStep
+    ? (["credentials", "phone", "otp", "password"] as const)
+    : (["phone", "otp", "password"] as const);
+
   return (
     <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-md-surface transition-colors duration-300 z-50">
       {/* Subtle ambient light — M3 tonal */}
@@ -60,31 +65,40 @@ export function AuthWizard({
           </div>
 
           {/* Step progress indicators — M3: 24dp dots */}
-          <div className="flex items-center justify-center gap-2 mb-6 sm:mb-8 bg-md-surface-container px-5 py-2.5 rounded-2xl border border-md-outline-variant/20 w-fit mx-auto">
-            {(["credentials", "phone", "otp", "password"] as const).map((step, i) => {
-              const steps = ["credentials", "phone", "otp", "password"] as const;
-              const stepIdx = steps.indexOf(state.step as any);
+          <div className="flex items-center justify-center gap-2 mb-6 sm:mb-8 bg-md-surface-container px-4 py-2 rounded-2xl border border-md-outline-variant/20 w-fit mx-auto">
+            {displaySteps.map((step, i) => {
+              const stepIdx = displaySteps.indexOf(state.step as any);
               const isFinalStep = state.step === "done";
               const currentIdx = i;
               const isActive = !isFinalStep && currentIdx === stepIdx;
               const isDone = isFinalStep || currentIdx < stepIdx;
 
+              const label =
+                step === "phone"
+                  ? "Phone"
+                  : step === "otp"
+                    ? "Code"
+                    : step === "password"
+                      ? "2FA"
+                      : "API";
+
               return (
                 <div key={step} className="flex items-center gap-2">
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all duration-300 ${
+                    className={`h-6 px-2.5 rounded-full flex items-center justify-center gap-1.5 text-[10px] font-semibold transition-all duration-300 ${
                       isActive
-                        ? "bg-md-primary text-md-on-primary"
+                        ? "bg-md-primary text-md-on-primary shadow-sm"
                         : isDone
                           ? "bg-success-container text-on-success-container border border-success/20"
                           : "bg-md-surface-container-highest text-md-on-surface-variant"
                     }`}
                   >
-                    {isDone ? "✓" : i + 1}
+                    <span>{isDone ? "✓" : i + 1}</span>
+                    <span className="hidden sm:inline font-medium">{label}</span>
                   </div>
-                  {i < 3 && (
+                  {i < displaySteps.length - 1 && (
                     <div
-                      className={`w-5 sm:w-6 h-0.5 rounded-full transition-all duration-300 ${
+                      className={`w-3 sm:w-5 h-0.5 rounded-full transition-all duration-300 ${
                         isDone ? "bg-success/40" : "bg-md-outline-variant/40"
                       }`}
                     />
@@ -95,7 +109,7 @@ export function AuthWizard({
           </div>
 
           <div className="bg-md-surface-container-low rounded-[28px] p-6 sm:p-8 border border-md-outline-variant/20 relative overflow-hidden" style={{ boxShadow: 'var(--md-elevation-1)' }}>
-            {state.step === "credentials" && (
+            {state.step === "credentials" && onCredentialsSubmit && (
               <CredentialsStep
                 loading={state.loading}
                 error={state.error}

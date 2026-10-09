@@ -48,11 +48,16 @@ function getErrorMessage(err: unknown) {
 }
 
 export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    step: "credentials",
-    phone: localStorage.getItem(LS_PHONE) || "",
-    loading: false,
-    error: null,
+  const [state, setState] = useState<AuthState>(() => {
+    const creds = getApiCredentials();
+    return {
+      step: "phone",
+      phone: localStorage.getItem(LS_PHONE) || "",
+      apiId: creds.apiId,
+      apiHash: creds.apiHash,
+      loading: false,
+      error: null,
+    };
   });
   const [connected, setConnected] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -194,7 +199,7 @@ export function useAuth() {
   }, [activeAccountId, extractProfile, rememberAccount]);
 
   const startAuth = useCallback(
-    async (phone: string, apiId: number, apiHash: string) => {
+    async (phone: string, inputApiId?: number, inputApiHash?: string) => {
       if (readAccounts().length >= 3) {
         setState((s) => ({
           ...s,
@@ -204,7 +209,11 @@ export function useAuth() {
         return;
       }
 
-      setState((s) => ({ ...s, loading: true, error: null, phone }));
+      const creds = getApiCredentials();
+      const apiId = inputApiId && inputApiId > 0 ? inputApiId : creds.apiId;
+      const apiHash = inputApiHash && inputApiHash.length > 0 ? inputApiHash : creds.apiHash;
+
+      setState((s) => ({ ...s, loading: true, error: null, phone, apiId, apiHash }));
       localStorage.setItem(LS_PHONE, phone);
       localStorage.setItem("tgcd_api_id", apiId.toString());
       localStorage.setItem("tgcd_api_hash", apiHash);
@@ -283,7 +292,8 @@ export function useAuth() {
     }
     setConnected(false);
     setUserProfile(null);
-    setState({ step: "credentials", phone: "", apiId: undefined, apiHash: undefined, loading: false, error: null });
+    const creds = getApiCredentials();
+    setState({ step: "phone", phone: "", apiId: creds.apiId, apiHash: creds.apiHash, loading: false, error: null });
   }, []);
 
   const switchAccount = useCallback(

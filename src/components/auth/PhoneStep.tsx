@@ -6,7 +6,7 @@ interface PhoneStepProps {
   loading: boolean;
   error: string | null;
   onSubmit: (phone: string) => void;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function PhoneStep({ loading, error, onSubmit, onBack }: PhoneStepProps) {
@@ -72,23 +72,25 @@ export function PhoneStep({ loading, error, onSubmit, onBack }: PhoneStepProps) 
       </div>
 
       <div className="flex gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onBack}
-          disabled={loading}
-          className="flex-1 select-none cursor-pointer"
-          size="lg"
-        >
-          Back
-        </Button>
+        {onBack && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onBack}
+            disabled={loading}
+            className="flex-1 select-none cursor-pointer"
+            size="lg"
+          >
+            Back
+          </Button>
+        )}
         <Button
           type="submit"
           loading={loading}
-          className="flex-[2] select-none cursor-pointer"
+          className={`${onBack ? "flex-[2]" : "w-full"} select-none cursor-pointer`}
           size="lg"
         >
-          Connect & Send
+          Send Verification Code
         </Button>
       </div>
 

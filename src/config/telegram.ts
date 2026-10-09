@@ -1,7 +1,14 @@
 declare const Bun: any;
 
 /**
- * Retrieve Telegram MTProto API credentials dynamically from localStorage or native Bun.env.
+ * Default Telegram MTProto Web API credentials (Telegram Web official app)
+ * Used when custom environment variables are not provided.
+ */
+export const DEFAULT_TELEGRAM_API_ID = 2496;
+export const DEFAULT_TELEGRAM_API_HASH = "8c8f27945744dd701700676451e9389f";
+
+/**
+ * Retrieve Telegram MTProto API credentials dynamically from env, localStorage or standard defaults.
  */
 export function getApiCredentials(): { apiId: number; apiHash: string } {
   let envApiId: string | undefined;
@@ -21,11 +28,12 @@ export function getApiCredentials(): { apiId: number; apiHash: string } {
     envApiHash = Bun.env.VITE_TELEGRAM_API_HASH || Bun.env.TELEGRAM_API_HASH;
   }
 
-  const idStr = localStorage.getItem("tgcd_api_id") || envApiId || "";
-  const hash = localStorage.getItem("tgcd_api_hash") || envApiHash || "";
+  const idStr = envApiId || localStorage.getItem("tgcd_api_id") || "";
+  const hash = envApiHash || localStorage.getItem("tgcd_api_hash") || "";
+
   return {
-    apiId: idStr ? parseInt(idStr, 10) : 0,
-    apiHash: hash,
+    apiId: idStr ? parseInt(idStr, 10) : DEFAULT_TELEGRAM_API_ID,
+    apiHash: hash || DEFAULT_TELEGRAM_API_HASH,
   };
 }
 

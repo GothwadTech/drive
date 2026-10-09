@@ -751,11 +751,10 @@ export default function App() {
     return (
       <AuthWizard
         state={authState}
-        onPhoneSubmit={(phone) => startAuth(phone, authState.apiId ?? 0, authState.apiHash ?? "")}
+        onPhoneSubmit={(phone) => startAuth(phone, authState.apiId, authState.apiHash)}
         onCredentialsSubmit={goToPhone}
         onOtpSubmit={submitOtp}
         onPasswordSubmit={submitPassword}
-        onBackToCredentials={goToCredentials}
       />
     );
   }
