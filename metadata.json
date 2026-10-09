@@ -1,0 +1,8 @@
+{
+  "name": "Clash Drive",
+  "description": "Clash Drive — Infinite, serverless cloud storage powered by Telegram's MTProto protocol. No backend, runs entirely in your browser.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
