@@ -1,0 +1,21 @@
+{
+  "name": "Gothwad Drive — Infinite Cloud Storage",
+  "short_name": "Gothwad Drive",
+  "description": "Infinite, serverless cloud storage powered by Telegram's MTProto protocol. No backend, runs entirely in your browser.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#121318",
+  "theme_color": "#121318",
+  "lang": "en",
+  "categories": ["productivity", "utilities", "storage"],
+  "icons": [
+    { "src": "/favicon.ico", "type": "image/x-icon", "sizes": "16x16 32x32" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "/icon-192-maskable.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
+    { "src": "/icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

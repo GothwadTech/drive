@@ -1,8 +1,5 @@
-import React from "react";
-import { PhoneStep } from "./PhoneStep";
-import { CredentialsStep } from "./CredentialsStep";
-import { OtpStep } from "./OtpStep";
-import { PasswordStep } from "./PasswordStep";
+import React, { useState, useEffect } from "react";
+import { Phone, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Shield, Check } from "lucide-react";
 import type { AuthState } from "../../types";
 
 interface AuthWizardProps {
@@ -17,134 +14,351 @@ interface AuthWizardProps {
 export function AuthWizard({
   state,
   onPhoneSubmit,
-  onCredentialsSubmit,
   onOtpSubmit,
   onPasswordSubmit,
-  onBackToCredentials,
 }: AuthWizardProps) {
-  const isCredentialsStep = state.step === "credentials";
-  const displaySteps = isCredentialsStep
-    ? (["credentials", "phone", "otp", "password"] as const)
-    : (["phone", "otp", "password"] as const);
+  const [phone, setPhone] = useState(state.phone || "");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [localError, setLocalError] = useState("");
+
+  useEffect(() => {
+    if (state.phone && !phone) {
+      setPhone(state.phone);
+    }
+  }, [state.phone, phone]);
+
+  const handlePhoneSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = phone.replace(/[\s()-]/g, "");
+
+    if (!cleaned.startsWith("+")) {
+      setLocalError("Phone number must include country code (e.g. +91XXXXXXXXXX)");
+      return;
+    }
+    if (cleaned.length < 10 || cleaned.length > 16) {
+      setLocalError("Please enter a valid international phone number");
+      return;
+    }
+
+    setLocalError("");
+    onPhoneSubmit(cleaned);
+  };
+
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = code.trim().replace(/\D/g, "");
+    if (cleanCode.length !== 5) {
+      setLocalError("Please enter the 5-digit verification code sent to Telegram");
+      return;
+    }
+
+    setLocalError("");
+    onOtpSubmit(cleanCode);
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) {
+      setLocalError("Please enter your 2-Step Verification cloud password");
+      return;
+    }
+
+    setLocalError("");
+    onPasswordSubmit(password);
+  };
+
+  const errorMessage = state.error || localError;
 
   return (
-    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-md-surface transition-colors duration-300 z-50">
-      {/* Subtle ambient light — M3 tonal */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl animate-float opacity-60" style={{ background: 'color-mix(in srgb, var(--md-primary) 6%, transparent)' }} />
-        <div
-          className="absolute -bottom-40 -right-40 w-120 h-120 rounded-full blur-3xl animate-float opacity-65"
-          style={{ animationDelay: "2s", background: 'color-mix(in srgb, var(--md-tertiary) 5%, transparent)' }}
-        />
+    <div className="min-h-screen h-full overflow-y-auto bg-[#0d0e12] text-gray-100 flex flex-col items-center justify-center relative font-sans selection:bg-[#0494f4]/30 selection:text-white">
+      {/* Background ambient accents */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none select-none">
+        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[100px] bg-[#0494f4]/15" />
+        <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[100px] bg-indigo-600/10" />
       </div>
 
-      <div className="min-h-full w-full flex flex-col items-center justify-start sm:justify-center p-4 py-8 sm:py-12">
-        <div className="w-full max-w-md relative z-10 animate-fade-in my-auto">
-          <div className="text-center mb-6 sm:mb-8">
-            <div className="inline-flex items-center gap-3 mb-2 sm:mb-3">
-              <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-brand-500 to-accent-500 shadow-lg shadow-brand-500/20">
-                <svg className="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="auth-logo-cloud" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-                      <stop offset="100%" stopColor="#E0E7FF" stopOpacity="0.85" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M42 80c-5.52 0-10-4.48-10-10 0-4.88 3.5-8.94 8.2-9.82C41.4 51.78 49.38 46 58.5 46c8.07 0 15.22 4.45 18 11.02 1.34-.63 2.85-.98 4.45-.98 5.52 0 10 4.48 10 10s-4.48 10-10 10H42z" fill="url(#auth-logo-cloud)" />
-                  <path d="M51 68l24-15.5L46.5 61l.5 9.5 4-2.5z" fill="#24A1DE" />
-                  <path d="M75 52.5L46.5 61l15.5 5.5 13-14z" fill="#38BDF8" />
-                </svg>
-              </div>
-              <span className="text-2xl font-semibold tracking-tight bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-transparent">
-                Gothwad Drive
-              </span>
-            </div>
-            <p className="text-md-on-surface-variant text-xs font-medium tracking-wide">
-              INFINITE STORAGE • SERVERLESS VIRTUAL CLIENT
-            </p>
+      <div className="w-full px-5 sm:px-8 pt-8 pb-16 z-10 flex flex-col items-center min-h-full relative max-w-md mx-auto my-auto animate-fade-in">
+        {/* Header Card */}
+        <div className="w-full bg-[#16171d] border border-white/10 rounded-2xl p-6 text-center flex flex-col items-center justify-center mb-5 shadow-xl shadow-black/20">
+          <div className="w-16 h-16 bg-[#0d0e12] rounded-2xl shadow-inner flex items-center justify-center border border-white/10 p-0 overflow-hidden mb-3.5 group transition-transform hover:scale-105">
+            <img 
+              src="/icon-512-maskable.png" 
+              alt="Gothwad Drive Logo" 
+              className="w-full h-full object-cover scale-105"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.includes("favicon.ico")) {
+                  target.src = "/favicon.ico";
+                }
+              }}
+            />
           </div>
+          <h2 className="text-[26px] font-black text-white tracking-tight mb-1">
+            Gothwad Drive
+          </h2>
+          <p className="text-gray-400 text-xs leading-relaxed max-w-[270px] mx-auto font-medium">
+            {state.step === "otp"
+              ? "Enter the 5-digit verification code sent to your Telegram app."
+              : state.step === "password"
+                ? "Two-Step Verification (2FA) is enabled. Enter your cloud password."
+                : "Infinite, serverless cloud storage powered by Telegram MTProto."}
+          </p>
+        </div>
 
-          {/* Step progress indicators — M3: 24dp dots */}
-          <div className="flex items-center justify-center gap-2 mb-6 sm:mb-8 bg-md-surface-container px-4 py-2 rounded-2xl border border-md-outline-variant/20 w-fit mx-auto">
-            {displaySteps.map((step, i) => {
-              const stepIdx = displaySteps.indexOf(state.step as any);
-              const isFinalStep = state.step === "done";
-              const currentIdx = i;
-              const isActive = !isFinalStep && currentIdx === stepIdx;
-              const isDone = isFinalStep || currentIdx < stepIdx;
+        {/* Step Status Tabs */}
+        <div className="w-full flex p-1 gap-2 select-none mb-5 max-w-md bg-[#16171d]/60 border border-white/5 rounded-2xl">
+          <button
+            type="button"
+            className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-default flex items-center justify-center gap-1.5 ${
+              state.step === "phone" || state.step === "credentials"
+                ? "bg-[#0494f4] text-white shadow-md shadow-[#0494f4]/20"
+                : "text-gray-400"
+            }`}
+          >
+            <span>1. Phone</span>
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-default flex items-center justify-center gap-1.5 ${
+              state.step === "otp"
+                ? "bg-[#0494f4] text-white shadow-md shadow-[#0494f4]/20"
+                : "text-gray-400"
+            }`}
+          >
+            <span>2. Code</span>
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-default flex items-center justify-center gap-1.5 ${
+              state.step === "password"
+                ? "bg-[#0494f4] text-white shadow-md shadow-[#0494f4]/20"
+                : "text-gray-400"
+            }`}
+          >
+            <span>3. 2FA</span>
+          </button>
+        </div>
 
-              const label =
-                step === "phone"
-                  ? "Phone"
-                  : step === "otp"
-                    ? "Code"
-                    : step === "password"
-                      ? "2FA"
-                      : "API";
+        {/* Active Form */}
+        <div className="w-full bg-[#16171d] border border-white/10 rounded-2xl p-6 shadow-xl shadow-black/20">
+          {/* STEP 1: Phone */}
+          {(state.step === "phone" || state.step === "credentials") && (
+            <form onSubmit={handlePhoneSubmit} className="space-y-4">
+              <div className="relative group">
+                <Phone
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0494f4] transition-colors"
+                />
+                <input
+                  type="tel"
+                  placeholder="+91 XXXXX XXXXX"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full pl-12 pr-5 py-3.5 bg-[#0d0e12] border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0494f4]/20 focus:border-[#0494f4]/60 transition-all placeholder:text-gray-400 text-white"
+                  autoFocus
+                  required
+                />
+              </div>
 
-              return (
-                <div key={step} className="flex items-center gap-2">
+              <div className="flex justify-between items-center px-1">
+                <div
+                  onClick={() => setRememberMe(!rememberMe)}
+                  className="flex items-center gap-2.5 cursor-pointer group select-none py-1"
+                >
                   <div
-                    className={`h-6 px-2.5 rounded-full flex items-center justify-center gap-1.5 text-[10px] font-semibold transition-all duration-300 ${
-                      isActive
-                        ? "bg-md-primary text-md-on-primary shadow-sm"
-                        : isDone
-                          ? "bg-success-container text-on-success-container border border-success/20"
-                          : "bg-md-surface-container-highest text-md-on-surface-variant"
+                    className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center transition-all duration-200 ${
+                      rememberMe
+                        ? "bg-[#0494f4] border-[#0494f4] shadow-sm shadow-[#0494f4]/30"
+                        : "bg-[#0d0e12] border-white/15 group-hover:border-[#0494f4]"
                     }`}
                   >
-                    <span>{isDone ? "✓" : i + 1}</span>
-                    <span className="hidden sm:inline font-medium">{label}</span>
+                    {rememberMe && (
+                      <Check className="w-3.5 h-3.5 text-white stroke-[3.5]" />
+                    )}
                   </div>
-                  {i < displaySteps.length - 1 && (
-                    <div
-                      className={`w-3 sm:w-5 h-0.5 rounded-full transition-all duration-300 ${
-                        isDone ? "bg-success/40" : "bg-md-outline-variant/40"
-                      }`}
-                    />
-                  )}
+                  <span className="text-xs font-semibold text-gray-400 group-hover:text-gray-200 transition-colors select-none">
+                    Remember session
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <span className="text-[11px] font-semibold text-gray-400">
+                  Telegram Account
+                </span>
+              </div>
 
-          <div className="bg-md-surface-container-low rounded-[28px] p-6 sm:p-8 border border-md-outline-variant/20 relative overflow-hidden" style={{ boxShadow: 'var(--md-elevation-1)' }}>
-            {state.step === "credentials" && onCredentialsSubmit && (
-              <CredentialsStep
-                loading={state.loading}
-                error={state.error}
-                onSubmit={onCredentialsSubmit}
-              />
-            )}
-            {state.step === "phone" && (
-              <PhoneStep
-                loading={state.loading}
-                error={state.error}
-                onSubmit={onPhoneSubmit}
-                onBack={onBackToCredentials}
-              />
-            )}
-            {state.step === "otp" && (
-              <OtpStep
-                phone={state.phone}
-                loading={state.loading}
-                error={state.error}
-                onSubmit={onOtpSubmit}
-              />
-            )}
-            {state.step === "password" && (
-              <PasswordStep
-                loading={state.loading}
-                error={state.error}
-                onSubmit={onPasswordSubmit}
-              />
-            )}
-          </div>
+              <button
+                type="submit"
+                disabled={state.loading || !phone.trim()}
+                className="w-full bg-[#0494f4] hover:bg-[#0383d8] text-white text-sm font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-[#0494f4]/25 mt-2 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {state.loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Sending Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send Verification Code</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
-          <p className="text-center text-[10px] uppercase font-medium tracking-wider text-md-on-surface-variant mt-6 flex items-center justify-center gap-1.5 select-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping shrink-0" />
-            End-to-End Encrypted via MTProto
+          {/* STEP 2: OTP / Verification Code */}
+          {state.step === "otp" && (
+            <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <div className="bg-[#0d0e12] border border-white/5 rounded-xl p-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-gray-300 font-mono">
+                  <Phone size={14} className="text-[#0494f4]" />
+                  <span>{phone || state.phone}</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                  Code Sent
+                </span>
+              </div>
+
+              <div className="relative group">
+                <ShieldCheck
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0494f4] transition-colors"
+                />
+                <input
+                  type="text"
+                  placeholder="5-digit Telegram Code"
+                  maxLength={5}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  className="w-full pl-12 pr-5 py-3.5 bg-[#0d0e12] border border-white/10 rounded-xl text-base tracking-[0.25em] font-mono focus:outline-none focus:ring-2 focus:ring-[#0494f4]/20 focus:border-[#0494f4]/60 transition-all placeholder:text-gray-400 placeholder:tracking-normal placeholder:font-sans text-white text-center sm:text-left"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center leading-relaxed">
+                Check your active Telegram app on your phone or desktop for the login code.
+              </p>
+
+              <button
+                type="submit"
+                disabled={state.loading || code.trim().length !== 5}
+                className="w-full bg-[#0494f4] hover:bg-[#0383d8] text-white text-sm font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-[#0494f4]/25 mt-2 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {state.loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Verifying Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Verify & Access Drive</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* STEP 3: 2FA Password */}
+          {state.step === "password" && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="relative group">
+                <Lock
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0494f4] transition-colors"
+                />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter 2FA Cloud Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-12 py-3.5 bg-[#0d0e12] border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0494f4]/20 focus:border-[#0494f4]/60 transition-all placeholder:text-gray-400 text-white"
+                  autoFocus
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center leading-relaxed">
+                This Telegram account is protected by an additional cloud password.
+              </p>
+
+              <button
+                type="submit"
+                disabled={state.loading || !password.trim()}
+                className="w-full bg-[#0494f4] hover:bg-[#0383d8] text-white text-sm font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 active:scale-[0.98] shadow-md shadow-[#0494f4]/25 mt-2 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {state.loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Unlocking Drive...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Unlock Gothwad Drive</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Error display */}
+          {errorMessage && (
+            <div className="mt-4 text-red-400 text-xs font-semibold text-center bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20 leading-relaxed">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Security details badge */}
+          <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-center gap-2 text-[11px] text-gray-400 select-none">
+            <Shield size={14} className="text-emerald-400 shrink-0" />
+            <span>End-to-End Encrypted via Telegram MTProto</span>
+          </div>
+        </div>
+
+        {/* Footer Gothwad / Atmanirbhar Bharat Branding Card */}
+        <div className="w-full bg-[#16171d] border border-white/10 rounded-2xl p-5 text-center flex flex-col items-center justify-center mt-5 shadow-sm select-none gap-3.5">
+          <p className="text-[10px] text-gray-400 leading-relaxed max-w-[280px] mx-auto">
+            By using <span className="font-bold text-[#0494f4]">Gothwad Drive</span>, you agree to our{" "}
+            <span className="font-bold text-[#0494f4] hover:underline cursor-pointer">
+              Terms of Service
+            </span>{" "}
+            &{" "}
+            <span className="font-bold text-[#0494f4] hover:underline cursor-pointer">
+              Privacy Policy
+            </span>.
           </p>
+          <div className="w-full h-[1px] bg-white/10"></div>
+          <div className="text-center max-w-[280px] mx-auto">
+            <span className="text-[10px] font-semibold text-gray-400/80 block leading-relaxed">
+              <span className="font-bold text-[#0494f4]">Gothwad Drive</span> is proudly developed and managed by{" "}
+              <a
+                href="https://gothwadtechnologies.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-[#0494f4] hover:underline cursor-pointer decoration-[#0494f4] decoration-2"
+              >
+                Gothwad
+              </a>{" "}
+              in support of India&apos;s Atmanirbhar Bharat initiative. If you have any concerns, please{" "}
+              <a
+                href="mailto:support@gothwadtechnologies.com"
+                className="font-bold text-[#0494f4] hover:underline cursor-pointer decoration-[#0494f4] decoration-2"
+              >
+                contact us
+              </a>.
+            </span>
+          </div>
         </div>
       </div>
     </div>
