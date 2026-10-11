@@ -29,6 +29,7 @@ worker.js
 # Locks and Zip archives
 bun.lock
 bun.lockb
+package-lock.json
 *.zip
 
 

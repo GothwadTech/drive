@@ -36,6 +36,12 @@ export async function createClientFromSession(
   const id = apiId ?? creds.apiId;
   const hash = apiHash ?? creds.apiHash;
 
+  if (!Number.isInteger(id) || id <= 0 || !hash) {
+    throw new Error(
+      "Telegram API credentials are missing or invalid. Set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH in this deployment's environment (e.g. Cloudflare Pages → Settings → Environment variables) and rebuild."
+    );
+  }
+
   const client = new TelegramClient({
     apiId: id,
     apiHash: hash,

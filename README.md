@@ -73,6 +73,14 @@ Get a developer instance running natively via Bun in seconds:
    bun run lint
    ```
 
+> **Telegram API credentials:** This app needs `api_id` + `api_hash` from
+> [my.telegram.org/apps](https://my.telegram.org/apps) (reusing credentials from one of your
+> own projects there is fine). Provide them as `VITE_TELEGRAM_API_ID` / `VITE_TELEGRAM_API_HASH`
+> — on Cloudflare Pages set them under **Settings → Environment variables** (for both
+> Production and Preview) and redeploy, or via `.env` for local development. There is **no
+> in-app manual entry**; missing values block login and wrong/mismatched values surface as
+> Telegram `400 API_ID_INVALID`.
+
 ---
 
 ## 📄 Metadata & Policies

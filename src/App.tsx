@@ -102,8 +102,6 @@ export default function App() {
     accounts,
     activeAccountId,
     tryAutoConnect,
-    goToPhone,
-    goToCredentials,
     startAuth,
     submitOtp,
     submitPassword,
@@ -752,7 +750,6 @@ export default function App() {
       <AuthWizard
         state={authState}
         onPhoneSubmit={(phone) => startAuth(phone, authState.apiId, authState.apiHash)}
-        onCredentialsSubmit={goToPhone}
         onOtpSubmit={submitOtp}
         onPasswordSubmit={submitPassword}
       />
