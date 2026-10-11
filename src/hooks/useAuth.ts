@@ -1,6 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { TelegramClient } from "@mtcute/web";
-import { getApiCredentials, LS_PHONE, LS_SESSION } from "../config/telegram";
+import {
+  getApiCredentials,
+  LS_PHONE,
+  LS_SESSION,
+  sanitizeApiHash,
+  sanitizeApiId,
+} from "../config/telegram";
 import {
   createClientFromSession,
   destroyClient,
@@ -47,14 +53,42 @@ function getErrorMessage(err: unknown) {
   return "Something went wrong";
 }
 
+/** Telegram rejected the api_id/api_hash pair (or blocked a leaked one). */
+function isApiCredentialsError(err: unknown): boolean {
+  return /API_ID_INVALID|API_ID_PUBLISHED/i.test(getErrorMessage(err));
+}
+
+function friendlyAuthError(err: unknown): string {
+  const msg = getErrorMessage(err);
+  if (isApiCredentialsError(err)) {
+    return "Telegram rejected the API credentials (API_ID_INVALID). Check the VITE_TELEGRAM_API_ID / VITE_TELEGRAM_API_HASH values configured for this deployment (e.g. Cloudflare Pages environment variables) and rebuild.";
+  }
+  return msg;
+}
+
+/**
+ * Resolve the api_id/api_hash pair to use.
+ * Deployment env credentials (e.g. Cloudflare Pages) are the source of truth
+ * and always win; account-stored values are only a legacy fallback.
+ * The pair is never mixed across sources.
+ */
+function resolveCreds(account?: { apiId?: number; apiHash?: string }) {
+  const explicit = getApiCredentials();
+  if (explicit.apiId > 0 && explicit.apiHash) return explicit;
+  const accId = sanitizeApiId(account?.apiId);
+  const accHash = sanitizeApiHash(account?.apiHash);
+  if (accId > 0 && accHash) return { apiId: accId, apiHash: accHash };
+  return explicit;
+}
+
 export function useAuth() {
   const [state, setState] = useState<AuthState>(() => {
     const creds = getApiCredentials();
     return {
       step: "phone",
       phone: localStorage.getItem(LS_PHONE) || "",
-      apiId: creds.apiId,
-      apiHash: creds.apiHash,
+      apiId: creds.apiId > 0 ? creds.apiId : undefined,
+      apiHash: creds.apiHash || undefined,
       loading: false,
       error: null,
     };
@@ -94,9 +128,9 @@ export function useAuth() {
 
   const rememberAccount = useCallback(
     async (profile: UserProfile, session: string) => {
-      const { apiId, apiHash } = getApiCredentials();
       const current = readAccounts();
       const existing = current.find((account) => account.userId === profile.id);
+      const { apiId, apiHash } = resolveCreds(existing);
 
       const validSession =
         session && session.length > 10
@@ -110,8 +144,8 @@ export function useAuth() {
         session: validSession,
         username: profile.username,
         idName: profileName(profile),
-        apiHash: existing?.apiHash || apiHash,
-        apiId: existing?.apiId || apiId,
+        apiHash,
+        apiId,
         avatarUrl: profile.avatarUrl || existing?.avatarUrl || null,
         updatedAt: Date.now(),
       };
@@ -145,15 +179,15 @@ export function useAuth() {
     if (!sessionToUse || sessionToUse.length < 10) return false;
 
     try {
-      if (preferred) {
-        localStorage.setItem("tgcd_api_id", preferred.apiId.toString());
-        localStorage.setItem("tgcd_api_hash", preferred.apiHash);
+      const { apiId, apiHash } = resolveCreds(preferred);
+      if (apiId > 0 && apiHash) {
+        localStorage.setItem("tgcd_api_id", apiId.toString());
+        localStorage.setItem("tgcd_api_hash", apiHash);
       }
-      const { apiId, apiHash } = getApiCredentials();
       const client = await createClientFromSession(
         sessionToUse,
-        preferred?.apiId ?? apiId,
-        preferred?.apiHash ?? apiHash
+        apiId,
+        apiHash
       );
       clientRef.current = client;
       setClient(client);
@@ -194,6 +228,13 @@ export function useAuth() {
         console.warn("Session revoked by Telegram, clearing stored credentials.");
         await destroyClient();
       }
+      if (isApiCredentialsError(err)) {
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error: friendlyAuthError(err),
+        }));
+      }
       return false;
     }
   }, [activeAccountId, extractProfile, rememberAccount]);
@@ -209,16 +250,38 @@ export function useAuth() {
         return;
       }
 
-      const creds = getApiCredentials();
-      const apiId = inputApiId && inputApiId > 0 ? inputApiId : creds.apiId;
-      const apiHash = inputApiHash && inputApiHash.length > 0 ? inputApiHash : creds.apiHash;
+      const creds = resolveCreds({ apiId: inputApiId, apiHash: inputApiHash });
+      const apiId = creds.apiId;
+      const apiHash = creds.apiHash;
 
-      setState((s) => ({ ...s, loading: true, error: null, phone, apiId, apiHash }));
-      localStorage.setItem(LS_PHONE, phone);
+      if (!(apiId > 0) || !apiHash) {
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error:
+            "Telegram API credentials are missing. Set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH in this deployment's environment (e.g. Cloudflare Pages → Settings → Environment variables) and rebuild.",
+        }));
+        return;
+      }
+
+      const cleanPhone = phone.trim();
+
+      setState((s) => ({ ...s, loading: true, error: null, phone: cleanPhone, apiId, apiHash }));
+      localStorage.setItem(LS_PHONE, cleanPhone);
       localStorage.setItem("tgcd_api_id", apiId.toString());
       localStorage.setItem("tgcd_api_hash", apiHash);
 
-      const client = await createClientFromSession("", apiId, apiHash);
+      let client;
+      try {
+        client = await createClientFromSession("", apiId, apiHash);
+      } catch (err: unknown) {
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error: friendlyAuthError(err),
+        }));
+        return;
+      }
       clientRef.current = client;
       setClient(client);
 
@@ -228,14 +291,14 @@ export function useAuth() {
         setState((s) => ({
           ...s,
           loading: false,
-          error: `Connection failed: ${getErrorMessage(err)}`,
+          error: `Connection failed: ${friendlyAuthError(err)}`,
         }));
         return;
       }
 
       client
         .start({
-          phone: () => Promise.resolve(phone),
+          phone: () => Promise.resolve(cleanPhone),
           code: () => {
             setState((s) => ({ ...s, step: "otp", loading: false }));
             return new Promise<string>((resolve) => {
@@ -261,19 +324,15 @@ export function useAuth() {
           setState((s) => ({ ...s, step: "done", loading: false }));
         })
         .catch((err) => {
-          setState((s) => ({ ...s, loading: false, error: getErrorMessage(err) }));
+          setState((s) => ({
+            ...s,
+            loading: false,
+            error: friendlyAuthError(err),
+          }));
         });
     },
     [extractProfile, rememberAccount]
   );
-
-  const goToPhone = useCallback((apiId: number, apiHash: string) => {
-    setState((s) => ({ ...s, step: "phone", apiId, apiHash, error: null }));
-  }, []);
-
-  const goToCredentials = useCallback(() => {
-    setState((s) => ({ ...s, step: "credentials", error: null }));
-  }, []);
 
   const beginAddAccount = useCallback(async () => {
     if (readAccounts().length >= 3) {
@@ -293,7 +352,14 @@ export function useAuth() {
     setConnected(false);
     setUserProfile(null);
     const creds = getApiCredentials();
-    setState({ step: "phone", phone: "", apiId: creds.apiId, apiHash: creds.apiHash, loading: false, error: null });
+    setState({
+      step: "phone",
+      phone: "",
+      apiId: creds.apiId > 0 ? creds.apiId : undefined,
+      apiHash: creds.apiHash || undefined,
+      loading: false,
+      error: null,
+    });
   }, []);
 
   const switchAccount = useCallback(
@@ -312,10 +378,13 @@ export function useAuth() {
         if (!account.session) {
           throw new Error("No local session found on this device. Please log in.");
         }
-        localStorage.setItem("tgcd_api_id", account.apiId.toString());
-        localStorage.setItem("tgcd_api_hash", account.apiHash);
+        const { apiId, apiHash } = resolveCreds(account);
+        if (apiId > 0 && apiHash) {
+          localStorage.setItem("tgcd_api_id", apiId.toString());
+          localStorage.setItem("tgcd_api_hash", apiHash);
+        }
 
-        const client = await createClientFromSession(account.session, account.apiId, account.apiHash);
+        const client = await createClientFromSession(account.session, apiId, apiHash);
         setClient(client);
         clientRef.current = client;
         await client.connect();
@@ -332,7 +401,12 @@ export function useAuth() {
         console.warn("Failed to switch account:", err);
         setConnected(false);
         setUserProfile(null);
-        setState({ step: "credentials", phone: "", loading: false, error: getErrorMessage(err) });
+        setState({
+          step: "phone",
+          phone: "",
+          loading: false,
+          error: friendlyAuthError(err),
+        });
       }
     },
     [activeAccountId, extractProfile, rememberAccount]
@@ -359,7 +433,7 @@ export function useAuth() {
       setConnected(false);
       setUserProfile(null);
       setActiveAccountId(null);
-      setState({ step: "credentials", phone: "", loading: false, error: null });
+      setState({ step: "phone", phone: "", loading: false, error: null });
     }
   }, [switchAccount]);
 
@@ -371,7 +445,7 @@ export function useAuth() {
     setConnected(false);
     setUserProfile(null);
     setActiveAccountId(null);
-    setState({ step: "credentials", phone: "", loading: false, error: null });
+    setState({ step: "phone", phone: "", loading: false, error: null });
   }, []);
 
   const removeAccount = useCallback(
@@ -406,8 +480,6 @@ export function useAuth() {
     accounts,
     activeAccountId,
     tryAutoConnect,
-    goToPhone,
-    goToCredentials,
     startAuth,
     submitOtp,
     submitPassword,
