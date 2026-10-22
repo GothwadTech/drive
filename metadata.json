@@ -1,8 +1,6 @@
 {
-  "name": "Clash Drive",
-  "description": "Clash Drive — Infinite, serverless cloud storage powered by Telegram's MTProto protocol. No backend, runs entirely in your browser.",
+  "name": "Gothwad Drive",
+  "description": "Gothwad Drive — Infinite, serverless cloud storage powered by Telegram MTProto with Gothwad Account SSO and AES-256-GCM encrypted cross-device session sync.",
   "permissions": [],
-  "capabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "capabilities": []
 }

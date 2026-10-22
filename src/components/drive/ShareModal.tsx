@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import type { DriveFile, DriveConfig } from "../../types";
 import { formatBytes } from "../../lib/manifest";
 import { DEFAULT_WORKER_URL } from "../../lib/bot";
+import { createShortShare } from "../../lib/gothwadSso";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 
@@ -9,6 +10,7 @@ interface ShareModalProps {
   file: DriveFile | null;
   driveConfig: DriveConfig | null;
   onClose: () => void;
+  authuser?: number;
 }
 
 const EXPIRY_OPTIONS = [
@@ -22,6 +24,7 @@ export function ShareModal({
   file,
   driveConfig,
   onClose,
+  authuser = 0,
 }: ShareModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,21 @@ export function ShareModal({
     setError(null);
 
     try {
+      const d1Share = await createShortShare(
+        {
+          chatId: driveConfig?.chatId || "",
+          file: { ...file, chatId: driveConfig?.chatId },
+          ttlSeconds,
+          senderInfo: "Gothwad Drive User",
+        },
+        authuser
+      );
+
+      if (d1Share.ok && (d1Share.id || d1Share.hash || d1Share.fullToken)) {
+        setShareHash(d1Share.id || d1Share.hash || d1Share.fullToken || null);
+        return;
+      }
+
       const cleanUrl = DEFAULT_WORKER_URL.replace(/\/$/, "");
       const res = await fetch(`${cleanUrl}/api/share`, {
         method: "POST",
@@ -49,7 +67,7 @@ export function ShareModal({
             chatId: driveConfig?.chatId,
           },
           ttlSeconds,
-          senderInfo: "GothwadDrive User",
+          senderInfo: "Gothwad Drive User",
         }),
       });
 
@@ -57,7 +75,7 @@ export function ShareModal({
       if (data.ok && (data.fullToken || data.hash)) {
         setShareHash(data.fullToken || data.hash);
       } else {
-        setError(data.error || "Failed to generate share hash");
+        setError(data.error || d1Share.error || "Failed to generate share link");
       }
     } catch (err: any) {
       setError(err?.message || "Failed to connect to file sharing service");
@@ -68,8 +86,7 @@ export function ShareModal({
 
   const getShareLink = () => {
     if (!shareHash) return "";
-    const origin = window.location.origin + window.location.pathname;
-    return `${origin}?share=${shareHash}`;
+    return `${window.location.origin}/s/${shareHash}`;
   };
 
   const handleCopyLink = () => {
@@ -94,7 +111,6 @@ export function ShareModal({
   return (
     <Modal open={Boolean(file)} onClose={onClose} title="File Sharing">
       <div className="space-y-5 select-none">
-        {/* Selected File Details */}
         <div className="p-3.5 rounded-2xl bg-md-surface-container border border-md-outline-variant/20 flex items-center justify-between">
           <div className="min-w-0 pr-3">
             <p className="text-xs font-bold text-md-on-surface truncate" title={file.name}>
@@ -109,7 +125,6 @@ export function ShareModal({
           </span>
         </div>
 
-        {/* Expiration Selector before generating */}
         {!shareHash && (
           <div className="space-y-2">
             <label className="text-[10px] font-semibold uppercase tracking-widest text-md-on-surface-variant">
@@ -133,17 +148,14 @@ export function ShareModal({
           </div>
         )}
 
-        {/* Error Alert */}
         {error && (
           <div className="p-3.5 rounded-2xl bg-md-error-container text-xs text-md-on-error-container font-medium flex items-center gap-2.5 animate-slide-down">
             <span>⚠️</span> {error}
           </div>
         )}
 
-        {/* Share Output Tabs */}
         {shareHash ? (
           <div className="space-y-4 animate-scale-in">
-            {/* M3 Segmented Button Tabs */}
             <div className="flex bg-md-surface-container-high p-1 rounded-full border border-md-outline-variant/20">
               <button
                 onClick={() => setActiveTab("share")}
@@ -167,7 +179,6 @@ export function ShareModal({
               </button>
             </div>
 
-            {/* Tab: Share Link & Token */}
             {activeTab === "share" && (
               <div className="p-4 rounded-2xl bg-md-surface-container border border-md-outline-variant/30 space-y-3.5">
                 <div>
@@ -178,12 +189,7 @@ export function ShareModal({
                     <code className="flex-grow p-3 rounded-xl bg-md-surface-container-lowest border border-md-primary/30 text-xs font-mono text-md-primary font-semibold text-center select-all">
                       {shareHash}
                     </code>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleCopyHash}
-                      className="shrink-0"
-                    >
+                    <Button variant="primary" size="sm" onClick={handleCopyHash} className="shrink-0">
                       {copiedHash ? "Copied!" : "Copy Hash"}
                     </Button>
                   </div>
@@ -200,12 +206,7 @@ export function ShareModal({
                       value={getShareLink()}
                       className="flex-grow px-4 py-3 rounded-xl bg-md-surface-container-lowest border border-md-outline-variant text-xs font-mono text-md-on-surface focus:outline-none select-all"
                     />
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleCopyLink}
-                      className="shrink-0"
-                    >
+                    <Button variant="primary" size="sm" onClick={handleCopyLink} className="shrink-0">
                       {copiedLink ? "Copied!" : "Copy Link"}
                     </Button>
                   </div>
@@ -213,7 +214,6 @@ export function ShareModal({
               </div>
             )}
 
-            {/* Tab: QR Code */}
             {activeTab === "qr" && (
               <div className="p-4 rounded-2xl bg-md-surface-container border border-md-outline-variant/20 flex flex-col items-center justify-center gap-3">
                 <img
@@ -222,21 +222,17 @@ export function ShareModal({
                   className="w-44 h-44 rounded-xl border border-md-outline-variant/30 p-2 bg-white"
                 />
                 <p className="text-xs text-md-on-surface-variant font-medium text-center">
-                  Scan QR code with phone camera to download file instantly.
+                  Scan QR code with phone camera to open shared file.
                 </p>
               </div>
             )}
 
-            {/* Telegram Share Button — M3 tertiary role */}
             <a
-              href={`https://t.me/share/url?url=${encodeURIComponent(getShareLink())}&text=${encodeURIComponent(`Check out this file on GothwadDrive: ${file.name}`)}`}
+              href={`https://t.me/share/url?url=${encodeURIComponent(getShareLink())}&text=${encodeURIComponent(`Check out this file on Gothwad Drive: ${file.name}`)}`}
               target="_blank"
               rel="noreferrer"
               className="w-full py-3 rounded-full bg-md-tertiary text-md-on-tertiary text-xs font-semibold uppercase tracking-wider hover:brightness-95 transition-all flex items-center justify-center gap-2"
             >
-              <svg className="w-4.5 h-4.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.05-.49-.83-.27-1.49-.42-1.43-.89.03-.25.38-.51 1.07-.78 4.19-1.82 6.98-3.02 8.37-3.6 3.98-1.65 4.81-1.94 5.35-1.95.12 0 .38.03.55.17.14.12.18.28.2.46-.02.07-.02.16-.04.29z"/>
-              </svg>
               Share via Telegram
             </a>
           </div>

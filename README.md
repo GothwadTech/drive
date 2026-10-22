@@ -1,90 +1,91 @@
-# Clash Drive (v3.0.0)
+# Gothwad Drive (v4.0)
 
-A serverless, client-side web application built natively on Bun that transforms Telegram supergroup forum topics into a personal cloud storage workspace. Run entirely in your browser with direct Telegram Datacenter connections via `@mtcute` MTProto.
+**Unlimited Zero-Cost Cloud Storage for the Gothwad Technologies Ecosystem** (`drive.gothwadtech.com`).
 
----
-
-## 🚀 Key Features
-
-### 📦 Storage & File Management
-- **Serverless Architecture:** Runs fully in the browser with direct MTProto TCP/WebSocket connections to Telegram production DCs powered by `@mtcute/web`. No server-side storage or API keys are proxied.
-- **Folder-to-Topic Mapping:** Organizes your storage by mapping root folders directly to Telegram supergroup forum topic threads.
-- **Batch Operations:** Perform batch upload, download, move, copy, and deletion across folders with real-time progress indicators.
-- **Move & Copy Modals:** Easily organize and transfer files between topic folders.
-- **Favourites & Starred Items:** Star important files for quick access with automatic topic synchronization.
-- **File Renaming & Properties:** Rename files and view detailed metadata (chunks, MIME types, upload dates, file IDs) using the File Info Inspector.
-- **Background Folder Indexing:** Automatic recursive indexing of all folders and files with live status tracking.
-
-### 🎥 Media Streaming & Advanced Previews
-- **In-Browser Media Streaming:** Uses a local Service Worker (`sw.js`) to intercept media range requests, fetch chunk segments from Telegram, and stream them progressively to in-browser video/audio players.
-- **Instant Playback Pre-caching:** Pre-caches initial chunks and pre-fetches message references for immediate video/audio playback without waiting for full file downloads.
-- **Rich File Previews:** Built-in viewer for images (with thumbnail grid caching), PDFs, code/text files, Office documents (XLSX, CSV, DOCX), and EPUB eBooks.
-
-### 🔗 Public Link File Sharing & Cloudflare Worker Integration
-- **Direct File Sharing:** Generate secure share links for files using direct worker links or share hashes.
-- **Telegram Bot Support:** Optional integration with `@clashdrivebot` for serving public download links directly to non-account holders.
-- **Worker Proxy Support:** Compatible with custom Cloudflare Worker endpoints (`worker.js`) for streaming public downloads.
-- **Receive Shared Links:** Import shared files seamlessly into your drive workspace.
-
-### 🔐 Security & Identity Management
-- **Multi-Account Swapping:** Connect and seamlessly switch between up to 3 Telegram identities stored locally.
-- **SRP & 2FA Support:** Fully compatible with 2-Factor Authentication (2FA) and Secure Remote Password (SRP) authentication in sandboxed browser environments.
-- **Cache & Session Management:** Built-in tools to clear local cache, manage storage quotas, and safely log out.
-
-### 🎨 Modern UI & Power Tools
-- **Tailwind CSS v4 & React 19:** Fast, responsive UI with sleek Dark and Light mode themes.
-- **Quick Navigation & Search:** Search files and folders instantly using keyboard shortcuts (`Ctrl + K` or `/`).
-- **Toast & Confirm System:** Real-time visual feedback for file actions and operations.
+Gothwad Drive v4.0 combines a direct browser-to-Telegram MTProto storage engine (`@mtcute/web`) with a Cloudflare Worker + D1 edge layer for silent `.gothwadtech.com` Single Sign-On (SSO), AES-256-GCM encrypted MTProto session vaults, `< 30ms` cached folder tree hydration, and short public share links (`/s/:shareId`).
 
 ---
 
-## 🛠️ Tech Stack
+## Architecture Highlights
 
-- **Runtime Engine:** Bun
-- **Frontend:** React 19, TypeScript, Vite 8, Tailwind CSS v4
-- **Telegram Protocol Engine:** `@mtcute` (`@mtcute/web`, `@mtcute/core`) with MTProto WebSockets
-- **Service Worker:** Custom range-request interceptor (`sw.js`)
-- **Public Edge Worker:** Cloudflare Worker (`worker.js`)
-
----
-
-## 💻 Local Development
-
-Get a developer instance running natively via Bun in seconds:
-
-1. **Install dependencies:**
-   ```bash
-   bun install
-   ```
-
-2. **Start the local development server:**
-   ```bash
-   bun dev
-   ```
-   *The application will run on `http://localhost:5173/` by default.*
-
-3. **Build production bundle:**
-   ```bash
-   bun run build
-   ```
-
-4. **Lint codebase:**
-   ```bash
-   bun run lint
-   ```
-
-> **Telegram API credentials:** This app needs `api_id` + `api_hash` from
-> [my.telegram.org/apps](https://my.telegram.org/apps) (reusing credentials from one of your
-> own projects there is fine). Provide them as `VITE_TELEGRAM_API_ID` / `VITE_TELEGRAM_API_HASH`
-> — on Cloudflare Pages set them under **Settings → Environment variables** (for both
-> Production and Preview) and redeploy, or via `.env` for local development. There is **no
-> in-app manual entry**; missing values block login and wrong/mismatched values surface as
-> Telegram `400 API_ID_INVALID`.
+1. **Zero-Cost Hybrid Storage Model**:
+   - **File Bytes**: Stream directly between the user's browser and Telegram Datacenters over WebSocket MTProto (`@mtcute/web`) with 20 MB chunk manifests and a Service Worker (`public/stream-sw.js`) supporting `206 Partial Content` byte-range streaming.
+   - **Identity, Encrypted Session Vault & Share Metadata**: Stored in Cloudflare D1 (`drive`, database ID `dfefd813-244a-47f1-8f5a-8d5c15ba3162`) behind the `drive` Cloudflare Worker (`drive.gothwadtech.com/api/*`).
+2. **Silent `.gothwadtech.com` Ecosystem SSO**:
+   - Reads `.gothwadtech.com` slot cookies (`gothwad_sess_a` .. `gothwad_sess_f`, `gothwad_active`, `gothwad_accounts`) via `GET /api/me` -> `https://api.gothwadtech.com/api/auth/me` with direct browser CORS fallback.
+   - Supports `/u/0/` .. `/u/5/` and `?authuser=0..5` multi-account slot routing.
+   - Integrates the universal Google-style account switcher (`https://accounts.gothwadtech.com/widget/account-menu.js`, `window.GothwadAccountMenu`) with an instant 0ms Shadow DOM fallback.
+3. **AES-256-GCM Encrypted Cloud Session Vault**:
+   - Encrypts the user's `@mtcute/web` session string per user using HKDF-SHA256 + WebCrypto `AES-GCM` (256-bit key, 96-bit CSPRNG IV, `gothwad-drive-vault:v1:<user_id>` Additional Authenticated Data).
+   - Stores sessions in `MemoryStorage` at runtime and scrubs legacy `tgcd_session*` keys from `localStorage`.
+   - Hydrates cached `driveConfig` and `topics` from `/api/drive/vault` for `< 30ms` folder painting before the background MTProto WebSocket handshake completes.
+4. **Backward-Compatible Supergroup Radar**:
+   - Recognizes both `#GothwadDrive_v1` and `#TgCloudDrive_v1` supergroup descriptions so existing user vaults continue working without data loss.
 
 ---
 
-## 📄 Metadata & Policies
+## Repository Structure
 
-- **[MIT License](./LICENSE)** — Terms of use and redistribution.
-- **[Security Policy](./SECURITY.md)** — Vulnerability reporting guidelines.
-- **[Code of Conduct](./CODE_OF_CONDUCT.md)** — Standard community covenant.
+```text
+├── public/
+│   ├── _redirects                 # Cloudflare Pages SPA routing (/s/*, /u/*, /*)
+│   └── stream-sw.js               # Range-request streaming Service Worker
+├── sql/
+│   ├── 00_d1_console_bootstrap.sql # Remote-safe D1 bootstrap SQL (zero PRAGMA)
+│   └── 01_drive_schema.sql         # Canonical D1 schema (system_keys, drive_vaults, drive_shares)
+├── worker/
+│   ├── wrangler.toml              # Worker config (name = "drive", route drive.gothwadtech.com/api/*)
+│   └── src/
+│       ├── index.ts               # Worker router (/api/health, /api/me, /api/auth/*, /api/drive/*)
+│       ├── auth.ts                # Upstream SSO verification & Set-Cookie multi-header forwarding
+│       ├── crypto.ts              # HKDF-SHA256 + AES-256-GCM per-user vault encryption
+│       ├── vault.ts               # GET / PUT / DELETE /api/drive/vault handlers
+│       ├── shares.ts              # POST /api/drive/shares & GET /api/drive/shares/:id handlers
+│       ├── schema.ts              # Cold-start idempotent ensureSchema(env.DB)
+│       ├── http.ts                # JSON, CORS, and CSRF Origin verification helpers
+│       └── types.ts               # Worker TypeScript interfaces
+├── src/
+│   ├── config/
+│   │   ├── brand.ts               # Single source of truth for APP_DOMAIN = "gothwadtech.com"
+│   │   └── telegram.ts            # MTProto constants & dual signature detector
+│   ├── lib/                       # Modular MTProto, downloader, radar, SSO & Account Menu widget
+│   ├── hooks/                     # React hooks (useAuth, useDrive, useFiles, useFileTransfer)
+│   ├── components/                # Modular UI components (every file strictly <= 500 lines)
+│   └── styles/                    # Theme tokens, utilities, and keyframe animations
+└── tests/
+    └── drive.test.mjs             # Node 22 node:sqlite + node:test verification suite
+```
+
+---
+
+## Quick Start & Verification Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Run the Node 22 SQLite + Worker + Crypto + Line-Count + English-Only test suite
+npm test
+
+# Lint and build the production SPA bundle
+npm run lint
+npm run build
+
+# Verify Cloudflare Worker dry-run bundle
+npx wrangler deploy --dry-run -c worker/wrangler.toml
+```
+
+---
+
+## Cloudflare Deployment (No Credit Card Required)
+
+1. **Bootstrap D1 Database (`drive`)**:
+   - Open the Cloudflare Dashboard -> **Workers & Pages -> D1 SQL Database -> `drive`** (`dfefd813-244a-47f1-8f5a-8d5c15ba3162`) -> **Console**, paste `sql/00_d1_console_bootstrap.sql`, and click **Execute**.
+   - Even if skipped, the Worker automatically runs `ensureSchema(env.DB)` on cold start.
+2. **Deploy Worker (`worker/wrangler.toml`)**:
+   - Optionally set a master secret: `npx wrangler secret put DRIVE_ENCRYPTION_KEY -c worker/wrangler.toml` (if omitted, the Worker auto-generates and persists a 256-bit CSPRNG master seed in `system_keys`).
+   - Deploy: `npx wrangler deploy -c worker/wrangler.toml`.
+3. **Deploy Frontend (Cloudflare Pages)**:
+   - Build command: `npm run build`
+   - Output directory: `dist`
+   - Custom domain: `drive.gothwadtech.com`

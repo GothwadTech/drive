@@ -14,10 +14,24 @@ export function useDrive() {
   const topicsCache = useRef<Map<string, TopicFolder[]>>(new Map());
 
   /**
-   * Run the full radar scan → drive setup → topic load pipeline.
+   * Hydrate cached driveConfig & folder topics immediately (< 30ms) from encrypted D1 vault
+   * before or while the MTProto WebSocket handshake runs in the background.
    */
+  const hydrateCachedDrive = useCallback(
+    (cachedConfig?: DriveConfig | null, cachedTopics?: TopicFolder[] | null) => {
+      if (cachedConfig && cachedConfig.chatId) {
+        setDriveConfig(cachedConfig);
+        if (Array.isArray(cachedTopics) && cachedTopics.length > 0) {
+          setTopics(cachedTopics);
+          topicsCache.current.set(cachedConfig.chatId, cachedTopics);
+        }
+      }
+    },
+    []
+  );
+
   const initDrive = useCallback(async (client: TelegramClient) => {
-    setSyncing(true);
+    setSyncing((prev) => (driveConfig ? prev : true));
     setSyncStatus("Scanning your chats for an existing drive...");
     try {
       await ensureConnected();
@@ -32,9 +46,8 @@ export function useDrive() {
       setSyncStatus("Loading folders...");
 
       await ensureDriveForumEnabled(client, config);
-      let folders = await getTopics(client, config);
+      const folders = await getTopics(client, config);
 
-      // Always ensure General folder (ID 1) exists for main supergroup chat files
       if (!folders.some((f) => f.id === 1 || f.title.toLowerCase() === "general")) {
         folders.unshift({
           id: 1,
@@ -76,11 +89,8 @@ export function useDrive() {
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [driveConfig]);
 
-  /**
-   * Refresh topics list from the network.
-   */
   const refreshTopics = useCallback(
     async (client: TelegramClient) => {
       if (!driveConfig) return;
@@ -92,9 +102,6 @@ export function useDrive() {
     [driveConfig]
   );
 
-  /**
-   * Create a new folder (topic).
-   */
   const addFolder = useCallback(
     async (client: TelegramClient, name: string) => {
       if (!driveConfig) return;
@@ -107,9 +114,6 @@ export function useDrive() {
     [driveConfig]
   );
 
-  /**
-   * Delete a folder (topic).
-   */
   const removeFolder = useCallback(
     async (client: TelegramClient, topicId: number) => {
       if (!driveConfig) return;
@@ -142,9 +146,6 @@ export function useDrive() {
     [driveConfig]
   );
 
-  /**
-   * Client-side keyword filter over cached topics.
-   */
   const filterTopics = useCallback(
     (query: string) => {
       if (!query.trim()) return topics;
@@ -177,6 +178,7 @@ export function useDrive() {
     topics,
     syncing,
     syncStatus,
+    hydrateCachedDrive,
     initDrive,
     refreshTopics,
     addFolder,

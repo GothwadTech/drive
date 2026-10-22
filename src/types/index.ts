@@ -31,8 +31,8 @@ export interface DriveFile {
   mimeType?: string;
   chunkFileName?: string;
   uploaderName?: string;
+  chatId?: string;
   message?: any;
-
 }
 
 export interface UploadProgress {
@@ -77,6 +77,7 @@ export interface SavedAccount {
   apiHash: string;
   apiId: number;
   avatarUrl: string | null;
+  phone?: string;
   updatedAt: number;
 }
 
@@ -86,5 +87,65 @@ export interface AuthState {
   apiId?: number;
   apiHash?: string;
   loading: boolean;
+  error: string | null;
+}
+
+export interface GothwadAccountItem {
+  id: string;
+  authuser: number;
+  username?: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  accountUrl?: string | null;
+  lastUsedAt?: string;
+}
+
+export interface GothwadSsoUser {
+  id: string;
+  username?: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  name: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  phoneNumber?: string;
+  twoFactorEnabled?: boolean;
+  storageUsedBytes?: number;
+  storageLimitBytes?: number;
+}
+
+export interface DriveVaultData {
+  userId: string;
+  username: string;
+  session: string | null;
+  tgSession?: string | null;
+  tgProfile: {
+    id: string;
+    username: string;
+    displayName: string;
+  } | null;
+  driveConfig: DriveConfig | null;
+  folders: TopicFolder[];
+  topics?: TopicFolder[];
+  storageUsedBytes: number;
+  fileCount: number;
+  updatedAt?: string;
+}
+
+export interface GothwadSsoState {
+  loading: boolean;
+  authenticated: boolean;
+  activeId: string | null;
+  authuser: number;
+  user: GothwadSsoUser | null;
+  accounts: GothwadAccountItem[];
+  hasVault: boolean;
+  vault: DriveVaultData | null;
+  legacyLocalSession: string | null;
   error: string | null;
 }

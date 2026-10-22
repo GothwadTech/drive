@@ -6,16 +6,31 @@ declare const Bun: any;
  * `400 API_ID_INVALID` (or `API_ID_PUBLISHED_FLOOD`), so they are NEVER used
  * to connect anymore — they are only kept so stale stored values can be
  * detected and ignored. Always use your own api_id/api_hash from
- * https://my.telegram.org/apps (reusing them across your own projects is fine).
+ * https://my.telegram.org/apps.
  */
 export const DEFAULT_TELEGRAM_API_ID = 2496;
 export const DEFAULT_TELEGRAM_API_HASH = "8c8f27945744dd701700676451e9389f";
 
 const API_HASH_RE = /^[a-fA-F0-9]{32}$/;
 
+let _runtimeWorkerApiId = 0;
+let _runtimeWorkerApiHash = "";
+
+/**
+ * Allow `/api/me` Worker response to supply Telegram API credentials at runtime
+ * alongside build-time `VITE_TELEGRAM_API_ID` / `VITE_TELEGRAM_API_HASH`.
+ */
+export function setRuntimeTelegramApiCredentials(apiId?: unknown, apiHash?: unknown): void {
+  const validId = sanitizeApiId(apiId);
+  const validHash = sanitizeApiHash(apiHash);
+  if (validId > 0 && validHash) {
+    _runtimeWorkerApiId = validId;
+    _runtimeWorkerApiHash = validHash;
+  }
+}
+
 /**
  * Parse a raw api_id value into a positive integer.
- * Tolerates quotes/whitespace/"api_id=..." style pasted values.
  * Rejects the leaked legacy default and returns 0 when invalid.
  */
 export function sanitizeApiId(raw: unknown): number {
@@ -48,24 +63,25 @@ export function sanitizeApiId(raw: unknown): number {
 export function sanitizeApiHash(raw: unknown): string {
   if (typeof raw !== "string") return "";
 
-  const cleaned = raw
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .replace(/^api[_-]?hash\s*[:=]\s*/i, "")
-    .trim();
-
+  const cleaned = valueToCleanString(raw);
   if (!API_HASH_RE.test(cleaned)) return "";
   if (cleaned.toLowerCase() === DEFAULT_TELEGRAM_API_HASH) return "";
   return cleaned;
 }
 
+function valueToCleanString(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^api[_-]?hash\s*[:=]\s*/i, "")
+    .trim();
+}
+
 /**
  * Retrieve Telegram MTProto API credentials.
- * Source of truth: deployment/build env (VITE_TELEGRAM_API_ID / VITE_TELEGRAM_API_HASH,
- * e.g. Cloudflare Pages → Settings → Environment variables, or a local .env).
- * There is no in-app manual entry — if these are missing, the app cannot log in.
- * Legacy localStorage values are only kept as a fallback cache.
- * Returns `{ apiId: 0, apiHash: "" }` when no VALID credentials exist.
+ * Supports build-time `VITE_TELEGRAM_API_ID` / `VITE_TELEGRAM_API_HASH`,
+ * Worker runtime `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` (via `/api/me`),
+ * and legacy `localStorage` fallback.
  */
 export function getApiCredentials(): { apiId: number; apiHash: string } {
   let envApiId: string | undefined;
@@ -87,10 +103,12 @@ export function getApiCredentials(): { apiId: number; apiHash: string } {
 
   const apiId =
     sanitizeApiId(envApiId) ||
+    _runtimeWorkerApiId ||
     sanitizeApiId(typeof localStorage !== "undefined" ? localStorage.getItem("tgcd_api_id") : null);
 
   const apiHash =
     sanitizeApiHash(envApiHash) ||
+    _runtimeWorkerApiHash ||
     sanitizeApiHash(typeof localStorage !== "undefined" ? localStorage.getItem("tgcd_api_hash") : null);
 
   return { apiId, apiHash };
@@ -108,16 +126,31 @@ export function hasExplicitApiCredentials(): boolean {
  * Client Identification for Telegram Active Sessions screen
  */
 export const DEVICE_MODEL = "GothwadDrive";
-export const APP_VERSION = "2.0";
-export const SYSTEM_VERSION = typeof navigator !== "undefined" && navigator.userAgent
-  ? (navigator.userAgent.includes("Windows") ? "Windows" : navigator.userAgent.includes("Mac") ? "macOS" : navigator.userAgent.includes("Linux") ? "Linux" : "Web")
-  : "Web";
+export const APP_VERSION = "4.0";
+export const SYSTEM_VERSION =
+  typeof navigator !== "undefined" && navigator.userAgent
+    ? navigator.userAgent.includes("Windows")
+      ? "Windows"
+      : navigator.userAgent.includes("Mac")
+        ? "macOS"
+        : navigator.userAgent.includes("Linux")
+          ? "Linux"
+          : "Web"
+    : "Web";
 
 /**
- * Signature embedded in the group description so
- * the radar can discover the drive across devices.
+ * Primary signature embedded in the group description so the radar can
+ * discover the drive across devices. Recognizes both `#GothwadDrive_v1`
+ * and legacy `#TgCloudDrive_v1` for 100% backward compatibility.
  */
-export const DRIVE_SIGNATURE = "#TgCloudDrive_v1";
+export const DRIVE_SIGNATURE = "#GothwadDrive_v1";
+export const LEGACY_DRIVE_SIGNATURE = "#TgCloudDrive_v1";
+export const ALL_DRIVE_SIGNATURES = [DRIVE_SIGNATURE, LEGACY_DRIVE_SIGNATURE] as const;
+
+export function hasDriveSignature(bioOrAbout?: string | null): boolean {
+  if (!bioOrAbout) return false;
+  return ALL_DRIVE_SIGNATURES.some((sig) => bioOrAbout.includes(sig));
+}
 
 /**
  * Default supergroup title when auto-creating.
@@ -135,8 +168,10 @@ export const CHUNK_SIZE = 50 * 1024 * 1024;
 export const UPLOAD_WORKERS = 8;
 
 /**
- * localStorage keys
+ * Legacy localStorage keys (scrubbed once migrated to encrypted D1 vault)
  */
 export const LS_SESSION = "tgcd_session";
 export const LS_PHONE = "tgcd_phone";
 export const LS_DRIVE = "tgcd_drive";
+export const LS_ACCOUNTS = "tgcd_accounts";
+export const LS_ACTIVE_ACCOUNT = "tgcd_active_account";

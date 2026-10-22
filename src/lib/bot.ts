@@ -1,10 +1,8 @@
 import { TelegramClient } from "@mtcute/web";
 import { Long } from "@mtcute/core";
 import type { DriveConfig } from "../types";
+import { DRIVE_WEB_ORIGIN } from "../config/brand";
 
-/**
- * Obfuscated decoding helper to prevent raw bot string exposure in frontend source code.
- */
 const _d = (s: string): string => {
   try {
     return atob(s);
@@ -13,9 +11,6 @@ const _d = (s: string): string => {
   }
 };
 
-/**
- * Dynamic bot identifiers (Base64 encoded at build, decoded dynamically at runtime)
- */
 export const BOT_USERNAME = _d("cGFpbnhjbGFzaF9ib3Q=");
 export const BOT_ID = _d("ODgwNzczMTA1OA==");
 
@@ -23,7 +18,7 @@ export const OLD_BOT_USERNAME = _d("Y2xhc2hkcml2ZWJvdA==");
 export const OLD_BOT_ALT = _d("Y2xhc2hkcml2ZQ==");
 export const OLD_BOT_ID = _d("ODgxMTQyNjQzMw==");
 
-export const DEFAULT_WORKER_URL = "https://clashdrive.clashgram.workers.dev";
+export const DEFAULT_WORKER_URL = DRIVE_WEB_ORIGIN;
 
 export interface BotAdminStatus {
   success: boolean;
@@ -31,9 +26,6 @@ export interface BotAdminStatus {
   isAdmin?: boolean;
 }
 
-/**
- * Kicks old bot if present in channel, auto-invites new bot using username/ID, and promotes it to Admin.
- */
 export async function ensureBotIsAdmin(
   client: TelegramClient,
   config: DriveConfig
@@ -50,7 +42,6 @@ export async function ensureBotIsAdmin(
       accessHash: Long.fromString(config.accessHash || "0"),
     };
 
-    // 1. Kick/remove old bot instances from user's Drive channel
     const oldBotsToKick = [
       { name: OLD_BOT_USERNAME, id: OLD_BOT_ID },
       { name: OLD_BOT_ALT },
@@ -61,16 +52,11 @@ export async function ensureBotIsAdmin(
       try {
         let oldBotUser: any = null;
         if (old.name) {
-          try {
-            oldBotUser = await client.resolvePeer(old.name);
-          } catch { /* ignore */ }
+          try { oldBotUser = await client.resolvePeer(old.name); } catch { /* ignore */ }
         }
         if (!oldBotUser && old.id) {
-          try {
-            oldBotUser = await client.resolvePeer(Number(old.id));
-          } catch { /* ignore */ }
+          try { oldBotUser = await client.resolvePeer(Number(old.id)); } catch { /* ignore */ }
         }
-
         if (oldBotUser) {
           await client.call({
             _: "channels.editBanned",
@@ -90,7 +76,6 @@ export async function ensureBotIsAdmin(
       }
     }
 
-    // 2. Resolve new bot entity using username or user ID
     let botUserPeer: any = null;
     try {
       botUserPeer = await client.resolvePeer(BOT_USERNAME);
@@ -127,7 +112,6 @@ export async function ensureBotIsAdmin(
       };
     }
 
-    // 3. Invite new bot to channel
     try {
       const inputUser =
         botUserPeer._ === "inputPeerUser"
@@ -146,7 +130,6 @@ export async function ensureBotIsAdmin(
       }
     }
 
-    // 4. Promote new bot to Admin with full permissions
     const adminRights = {
       _: "chatAdminRights" as const,
       changeInfo: true,
