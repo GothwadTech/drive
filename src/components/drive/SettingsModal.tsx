@@ -343,7 +343,7 @@ export function SettingsModal({
                       <span className="truncate">Join Updates Channel</span>
                     </div>
                     <span className="text-[10px] font-mono text-md-primary bg-md-primary-container px-2 py-0.5 rounded-md shrink-0">
-                      @clashgramclient
+                      @gothwadtech
                     </span>
                   </button>
                 )}

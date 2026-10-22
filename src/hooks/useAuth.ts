@@ -13,16 +13,19 @@ import {
   destroyHelperClients,
   ensureConnected,
   getCurrentSessionString,
-  hasPersistedSession,
   persistSession,
   setClient,
+  setMemorySession,
   startConnectionMonitor,
 } from "../lib/client";
+import { scrubLegacyLocalStorageSessions } from "../lib/gothwadSso";
 
 import type { AuthState, SavedAccount, UserProfile } from "../types";
 
 const LS_ACCOUNTS = "tgcd_accounts";
 const LS_ACTIVE_ACCOUNT = "tgcd_active_account";
+
+const memoryAccountSessions = new Map<string, string>();
 
 function readAccounts(): SavedAccount[] {
   try {
@@ -33,7 +36,11 @@ function readAccounts(): SavedAccount[] {
 }
 
 function writeAccounts(accounts: SavedAccount[]) {
-  localStorage.setItem(LS_ACCOUNTS, JSON.stringify(accounts.slice(0, 3)));
+  const scrubbed = accounts.slice(0, 3).map((acc) => {
+    if (acc.session) memoryAccountSessions.set(acc.userId, acc.session);
+    return { ...acc, session: "" };
+  });
+  localStorage.setItem(LS_ACCOUNTS, JSON.stringify(scrubbed));
 }
 
 function profileName(profile: UserProfile) {
@@ -53,7 +60,6 @@ function getErrorMessage(err: unknown) {
   return "Something went wrong";
 }
 
-/** Telegram rejected the api_id/api_hash pair (or blocked a leaked one). */
 function isApiCredentialsError(err: unknown): boolean {
   return /API_ID_INVALID|API_ID_PUBLISHED/i.test(getErrorMessage(err));
 }
@@ -61,17 +67,11 @@ function isApiCredentialsError(err: unknown): boolean {
 function friendlyAuthError(err: unknown): string {
   const msg = getErrorMessage(err);
   if (isApiCredentialsError(err)) {
-    return "Telegram rejected the API credentials (API_ID_INVALID). Check the VITE_TELEGRAM_API_ID / VITE_TELEGRAM_API_HASH values configured for this deployment (e.g. Cloudflare Pages environment variables) and rebuild.";
+    return "Telegram rejected the API credentials (API_ID_INVALID). Check the VITE_TELEGRAM_API_ID / VITE_TELEGRAM_API_HASH values configured for this deployment and rebuild.";
   }
   return msg;
 }
 
-/**
- * Resolve the api_id/api_hash pair to use.
- * Deployment env credentials (e.g. Cloudflare Pages) are the source of truth
- * and always win; account-stored values are only a legacy fallback.
- * The pair is never mixed across sources.
- */
 function resolveCreds(account?: { apiId?: number; apiHash?: string }) {
   const explicit = getApiCredentials();
   if (explicit.apiId > 0 && explicit.apiHash) return explicit;
@@ -113,8 +113,8 @@ export function useAuth() {
           avatarUrl = URL.createObjectURL(new Blob([new Uint8Array(buffer)], { type: "image/jpeg" }));
         }
       }
-    } catch (e) {
-      console.warn("Could not download profile photo", e);
+    } catch {
+      // ignore avatar error
     }
 
     return {
@@ -135,13 +135,16 @@ export function useAuth() {
       const validSession =
         session && session.length > 10
           ? session
-          : existing?.session || localStorage.getItem(LS_SESSION) || "";
+          : memoryAccountSessions.get(profile.id) || existing?.session || "";
 
       if (!validSession || validSession.length < 10) return;
 
+      memoryAccountSessions.set(profile.id, validSession);
+      setMemorySession(validSession);
+
       const saved: SavedAccount = {
         userId: profile.id,
-        session: validSession,
+        session: "",
         username: profile.username,
         idName: profileName(profile),
         apiHash,
@@ -156,88 +159,92 @@ export function useAuth() {
 
       writeAccounts(next);
       localStorage.setItem(LS_ACTIVE_ACCOUNT, saved.userId);
-      localStorage.setItem(LS_SESSION, validSession);
+      scrubLegacyLocalStorageSessions();
       setAccounts(next);
       setActiveAccountId(saved.userId);
     },
     []
   );
 
-  const tryAutoConnect = useCallback(async (): Promise<boolean> => {
-    const localAccounts = readAccounts();
-    const storedSession = localStorage.getItem(LS_SESSION) ?? "";
-
-    const preferred =
-      localAccounts.find((account) => account.userId === activeAccountId) ??
-      localAccounts[0];
-
-    const sessionToUse =
-      preferred?.session && preferred.session.length > 10
-        ? preferred.session
-        : storedSession;
-
-    if (!sessionToUse || sessionToUse.length < 10) return false;
-
-    try {
-      const { apiId, apiHash } = resolveCreds(preferred);
-      if (apiId > 0 && apiHash) {
-        localStorage.setItem("tgcd_api_id", apiId.toString());
-        localStorage.setItem("tgcd_api_hash", apiHash);
-      }
-      const client = await createClientFromSession(
-        sessionToUse,
-        apiId,
-        apiHash
-      );
-      clientRef.current = client;
-      setClient(client);
-
-      let connectedOk = false;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          await client.connect();
-          connectedOk = true;
-          break;
-        } catch (connErr) {
-          console.warn(`[AutoConnect] Connection attempt ${attempt}/3 failed:`, connErr);
-          if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * attempt));
+  const connectWithSessionString = useCallback(
+    async (sessionToUse: string, preferred?: { apiId?: number; apiHash?: string }): Promise<boolean> => {
+      if (!sessionToUse || sessionToUse.length < 10) return false;
+      try {
+        setMemorySession(sessionToUse);
+        const { apiId, apiHash } = resolveCreds(preferred);
+        if (apiId > 0 && apiHash) {
+          localStorage.setItem("tgcd_api_id", apiId.toString());
+          localStorage.setItem("tgcd_api_hash", apiHash);
         }
-      }
-      if (!connectedOk) return false;
+        const client = await createClientFromSession(sessionToUse, apiId, apiHash);
+        clientRef.current = client;
+        setClient(client);
 
-      const profile = await extractProfile(client);
-      if (!profile.id) return false;
+        let connectedOk = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await client.connect();
+            connectedOk = true;
+            break;
+          } catch {
+            if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * attempt));
+          }
+        }
+        if (!connectedOk) return false;
 
-      const exportedSession = await persistSession();
-      const finalSession = exportedSession || sessionToUse;
+        const profile = await extractProfile(client);
+        if (!profile.id) return false;
 
-      await rememberAccount(profile, finalSession);
-      startConnectionMonitor();
-      setUserProfile(profile);
-      setConnected(true);
-      setState((s) => ({ ...s, step: "done" }));
-      return true;
-    } catch (err) {
-      console.warn("Auto-connect attempt failed gracefully:", err);
-      const errStr = String(err).toLowerCase();
-      if (
-        errStr.includes("auth_key_unregistered") ||
-        errStr.includes("session_revoked") ||
-        errStr.includes("user_deactivated")
-      ) {
-        console.warn("Session revoked by Telegram, clearing stored credentials.");
-        await destroyClient();
+        const exportedSession = await persistSession();
+        const finalSession = exportedSession || sessionToUse;
+
+        await rememberAccount(profile, finalSession);
+        scrubLegacyLocalStorageSessions();
+        startConnectionMonitor();
+        setUserProfile(profile);
+        setConnected(true);
+        setState((s) => ({ ...s, step: "done", loading: false }));
+        return true;
+      } catch (err) {
+        const errStr = String(err).toLowerCase();
+        if (
+          errStr.includes("auth_key_unregistered") ||
+          errStr.includes("session_revoked") ||
+          errStr.includes("user_deactivated")
+        ) {
+          await destroyClient();
+        }
+        if (isApiCredentialsError(err)) {
+          setState((s) => ({ ...s, loading: false, error: friendlyAuthError(err) }));
+        }
+        return false;
       }
-      if (isApiCredentialsError(err)) {
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: friendlyAuthError(err),
-        }));
+    },
+    [extractProfile, rememberAccount]
+  );
+
+  const tryAutoConnect = useCallback(
+    async (vaultSession?: string | null): Promise<boolean> => {
+      if (vaultSession && vaultSession.length > 10) {
+        const ok = await connectWithSessionString(vaultSession);
+        if (ok) return true;
       }
-      return false;
-    }
-  }, [activeAccountId, extractProfile, rememberAccount]);
+
+      const localAccounts = readAccounts();
+      const storedSession = localStorage.getItem(LS_SESSION) ?? "";
+      const preferred =
+        localAccounts.find((account) => account.userId === activeAccountId) ??
+        localAccounts[0];
+
+      const sessionToUse =
+        (preferred && memoryAccountSessions.get(preferred.userId)) ||
+        (preferred?.session && preferred.session.length > 10 ? preferred.session : storedSession);
+
+      if (!sessionToUse || sessionToUse.length < 10) return false;
+      return connectWithSessionString(sessionToUse, preferred);
+    },
+    [activeAccountId, connectWithSessionString]
+  );
 
   const startAuth = useCallback(
     async (phone: string, inputApiId?: number, inputApiHash?: string) => {
@@ -251,21 +258,18 @@ export function useAuth() {
       }
 
       const creds = resolveCreds({ apiId: inputApiId, apiHash: inputApiHash });
-      const apiId = creds.apiId;
-      const apiHash = creds.apiHash;
+      const { apiId, apiHash } = creds;
 
       if (!(apiId > 0) || !apiHash) {
         setState((s) => ({
           ...s,
           loading: false,
-          error:
-            "Telegram API credentials are missing. Set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH in this deployment's environment (e.g. Cloudflare Pages → Settings → Environment variables) and rebuild.",
+          error: "Telegram API credentials are missing. Set VITE_TELEGRAM_API_ID and VITE_TELEGRAM_API_HASH.",
         }));
         return;
       }
 
       const cleanPhone = phone.trim();
-
       setState((s) => ({ ...s, loading: true, error: null, phone: cleanPhone, apiId, apiHash }));
       localStorage.setItem(LS_PHONE, cleanPhone);
       localStorage.setItem("tgcd_api_id", apiId.toString());
@@ -275,11 +279,7 @@ export function useAuth() {
       try {
         client = await createClientFromSession("", apiId, apiHash);
       } catch (err: unknown) {
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: friendlyAuthError(err),
-        }));
+        setState((s) => ({ ...s, loading: false, error: friendlyAuthError(err) }));
         return;
       }
       clientRef.current = client;
@@ -288,11 +288,7 @@ export function useAuth() {
       try {
         await client.connect();
       } catch (err: unknown) {
-        setState((s) => ({
-          ...s,
-          loading: false,
-          error: `Connection failed: ${friendlyAuthError(err)}`,
-        }));
+        setState((s) => ({ ...s, loading: false, error: `Connection failed: ${friendlyAuthError(err)}` }));
         return;
       }
 
@@ -316,19 +312,16 @@ export function useAuth() {
           const sessionToken = await persistSession();
           const profile = await extractProfile(client);
           await rememberAccount(profile, sessionToken || getCurrentSessionString());
+          scrubLegacyLocalStorageSessions();
           startConnectionMonitor();
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 300));
           await ensureConnected();
           setUserProfile(profile);
           setConnected(true);
           setState((s) => ({ ...s, step: "done", loading: false }));
         })
         .catch((err) => {
-          setState((s) => ({
-            ...s,
-            loading: false,
-            error: friendlyAuthError(err),
-          }));
+          setState((s) => ({ ...s, loading: false, error: friendlyAuthError(err) }));
         });
     },
     [extractProfile, rememberAccount]
@@ -344,9 +337,7 @@ export function useAuth() {
       return;
     }
     if (clientRef.current) {
-      try {
-        await clientRef.current.destroy();
-      } catch { /* ignore */ }
+      try { await clientRef.current.destroy(); } catch {}
       clientRef.current = null;
     }
     setConnected(false);
@@ -368,65 +359,37 @@ export function useAuth() {
       if (!account || account.userId === activeAccountId) return;
       setState((s) => ({ ...s, loading: true, error: null }));
       if (clientRef.current) {
-        try {
-          await clientRef.current.destroy();
-        } catch { /* ignore */ }
+        try { await clientRef.current.destroy(); } catch {}
       }
       await destroyHelperClients();
 
-      try {
-        if (!account.session) {
-          throw new Error("No local session found on this device. Please log in.");
-        }
-        const { apiId, apiHash } = resolveCreds(account);
-        if (apiId > 0 && apiHash) {
-          localStorage.setItem("tgcd_api_id", apiId.toString());
-          localStorage.setItem("tgcd_api_hash", apiHash);
-        }
-
-        const client = await createClientFromSession(account.session, apiId, apiHash);
-        setClient(client);
-        clientRef.current = client;
-        await client.connect();
-        const profile = await extractProfile(client);
-        const sessionToken = await persistSession();
-        await rememberAccount(profile, sessionToken || getCurrentSessionString());
-        startConnectionMonitor();
-        await new Promise((r) => setTimeout(r, 500));
-        await ensureConnected();
-        setUserProfile(profile);
-        setConnected(true);
-        setState((s) => ({ ...s, step: "done", loading: false }));
-      } catch (err: unknown) {
-        console.warn("Failed to switch account:", err);
+      const sessionStr = memoryAccountSessions.get(userId) || account.session;
+      if (!sessionStr) {
         setConnected(false);
         setUserProfile(null);
-        setState({
-          step: "phone",
-          phone: "",
-          loading: false,
-          error: friendlyAuthError(err),
-        });
+        setState({ step: "phone", phone: "", loading: false, error: "Please re-authenticate this account." });
+        return;
       }
+      await connectWithSessionString(sessionStr, account);
     },
-    [activeAccountId, extractProfile, rememberAccount]
+    [activeAccountId, connectWithSessionString]
   );
 
   const logout = useCallback(async () => {
     const activeId = localStorage.getItem(LS_ACTIVE_ACCOUNT);
+    if (activeId) memoryAccountSessions.delete(activeId);
     await destroyClient();
     localStorage.removeItem(LS_PHONE);
     localStorage.removeItem("tgcd_drive");
     localStorage.removeItem(LS_ACTIVE_ACCOUNT);
-    localStorage.removeItem(LS_SESSION);
+    scrubLegacyLocalStorageSessions();
 
     const remaining = readAccounts().filter((account) => account.userId !== activeId);
     writeAccounts(remaining);
     setAccounts(remaining);
 
-    if (remaining.length > 0) {
-      const nextAccount = remaining[0];
-      await switchAccount(nextAccount.userId);
+    if (remaining.length > 0 && memoryAccountSessions.has(remaining[0].userId)) {
+      await switchAccount(remaining[0].userId);
     } else {
       localStorage.removeItem(LS_ACCOUNTS);
       setAccounts([]);
@@ -438,6 +401,7 @@ export function useAuth() {
   }, [switchAccount]);
 
   const clearCache = useCallback(async () => {
+    memoryAccountSessions.clear();
     await destroyClient();
     localStorage.clear();
     sessionStorage.clear();
@@ -450,13 +414,11 @@ export function useAuth() {
 
   const removeAccount = useCallback(
     async (userId: string) => {
+      memoryAccountSessions.delete(userId);
       const next = readAccounts().filter((account) => account.userId !== userId);
       writeAccounts(next);
       setAccounts(next);
-
-      if (activeAccountId === userId) {
-        await logout();
-      }
+      if (activeAccountId === userId) await logout();
     },
     [activeAccountId, logout]
   );
@@ -472,6 +434,13 @@ export function useAuth() {
     passwordResolve.current?.(cleanPassword);
   }, []);
 
+  const getActiveSessionString = useCallback(() => {
+    return (
+      getCurrentSessionString() ||
+      (activeAccountId ? memoryAccountSessions.get(activeAccountId) || "" : "")
+    );
+  }, [activeAccountId]);
+
   return {
     authState: state,
     connected,
@@ -480,6 +449,8 @@ export function useAuth() {
     accounts,
     activeAccountId,
     tryAutoConnect,
+    connectWithSessionString,
+    getActiveSessionString,
     startAuth,
     submitOtp,
     submitPassword,

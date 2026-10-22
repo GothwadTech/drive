@@ -3,7 +3,8 @@ import type { DriveFile, DriveConfig, TopicFolder } from "../../types";
 import { formatBytes } from "../../lib/manifest";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
-import { BOT_USERNAME } from "../../lib/bot";
+import { BOT_USERNAME, DEFAULT_WORKER_URL } from "../../lib/bot";
+import { fetchShortShare, buildSsoSignInUrl } from "../../lib/gothwadSso";
 
 interface ReceiveShareModalProps {
   initialHash?: string;
@@ -23,9 +24,7 @@ function formatTtl(seconds: number): string {
     const days = Math.floor(hours / 24);
     return `${days} day${days > 1 ? "s" : ""}`;
   }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
+  if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes} min`;
 }
 
@@ -55,7 +54,7 @@ export function ReceiveShareModal({
 
   useEffect(() => {
     if (initialHash) {
-      handleFetchFile(initialHash);
+      void handleFetchFile(initialHash);
     }
   }, [initialHash]);
 
@@ -65,7 +64,7 @@ export function ReceiveShareModal({
     } else if (topics.length > 0 && selectedTopicId === null) {
       setSelectedTopicId(topics[0].id);
     }
-  }, [activeFolderId, topics]);
+  }, [activeFolderId, topics, selectedTopicId]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -84,23 +83,31 @@ export function ReceiveShareModal({
       return;
     }
 
-    const effectiveWorkerUrl = workerUrl?.trim() || "https://clashdrive.clashgram.workers.dev";
     setLoading(true);
     setError(null);
     setSharedFile(null);
     setSuccessMsg(null);
 
     try {
+      const d1Result = await fetchShortShare(cleanHash);
+      if (d1Result.ok && d1Result.data?.file) {
+        setSharedFile(d1Result.data.file);
+        setSenderInfo(d1Result.data.sender || "Gothwad Drive User");
+        setTtlRemaining(d1Result.ttlRemaining ?? -1);
+        return;
+      }
+
+      const effectiveWorkerUrl = workerUrl?.trim() || DEFAULT_WORKER_URL;
       const cleanUrl = effectiveWorkerUrl.replace(/\/$/, "");
-      const res = await fetch(`${cleanUrl}/api/share?hash=${cleanHash}`);
+      const res = await fetch(`${cleanUrl}/api/share?hash=${encodeURIComponent(cleanHash)}`);
       const result = await res.json();
 
       if (result.ok && result.data && result.data.file) {
         setSharedFile(result.data.file);
-        setSenderInfo(result.data.sender || "GothwadDrive User");
+        setSenderInfo(result.data.sender || "Gothwad Drive User");
         setTtlRemaining(result.ttlRemaining ?? -1);
       } else {
-        setError(result.error || "Share token not found or expired.");
+        setError(result.error || d1Result.error || "Share token not found or expired.");
       }
     } catch (err: any) {
       setError(err?.message || "Failed to fetch shared file data.");
@@ -112,11 +119,14 @@ export function ReceiveShareModal({
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      const match = text.match(/share=([a-f0-9]{12}(?:\.[A-Za-z0-9_-]+)?)/i) || text.match(/([a-f0-9]{12}(?:\.[A-Za-z0-9_-]+)?)/i);
+      const match =
+        text.match(/\/s\/([A-Za-z0-9_-]{6,64})/) ||
+        text.match(/share=([A-Za-z0-9_.-]{6,128})/) ||
+        text.match(/([A-Za-z0-9_-]{6,64})/);
       const extractedHash = match ? match[1] : text.trim();
       if (extractedHash) {
         setHash(extractedHash);
-        handleFetchFile(extractedHash);
+        void handleFetchFile(extractedHash);
       }
     } catch {
       setError("Clipboard read permission denied.");
@@ -124,9 +134,9 @@ export function ReceiveShareModal({
   };
 
   const handleSendViaBot = async () => {
-    const effectiveWorkerUrl = workerUrl?.trim() || "https://clashdrive.clashgram.workers.dev";
+    const effectiveWorkerUrl = workerUrl?.trim() || DEFAULT_WORKER_URL;
     if (!hash || !effectiveWorkerUrl || !driveConfig?.chatId) {
-      setError("Active Drive chat configuration is required to send via bot.");
+      setError("Sign in to your Drive Vault first to import this shared file into your folder.");
       return;
     }
 
@@ -150,12 +160,8 @@ export function ReceiveShareModal({
       if (result.ok) {
         const folderName = topics.find((t) => t.id === selectedTopicId)?.title || "your folder";
         setSuccessMsg(`File saved & forwarded to "${folderName}" via @${BOT_USERNAME}!`);
-        if (onSuccess) {
-          onSuccess(selectedTopicId);
-        }
-        setTimeout(() => {
-          onClose();
-        }, 1500);
+        if (onSuccess) onSuccess(selectedTopicId);
+        setTimeout(() => onClose(), 1500);
       } else {
         setError(result.error || "Failed to send file via Telegram Bot.");
       }
@@ -171,7 +177,6 @@ export function ReceiveShareModal({
   return (
     <Modal open={true} onClose={onClose} title="Redeem Shared File">
       <div className="space-y-5 select-none">
-        {/* Input Hash Section */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-semibold uppercase tracking-widest text-md-on-surface-variant">
@@ -190,12 +195,12 @@ export function ReceiveShareModal({
               type="text"
               value={hash}
               onChange={(e) => setHash(e.target.value)}
-              placeholder="Paste 12-character token hash or link..."
+              placeholder="Paste 12-character token hash or /s/:id link..."
               className="flex-grow px-4 py-3 rounded-xl bg-md-surface-container-lowest border border-md-outline-variant text-xs font-mono text-md-on-surface placeholder:text-md-outline focus:outline-none focus:border-md-primary"
             />
             <Button
               variant="primary"
-              onClick={() => handleFetchFile(hash)}
+              onClick={() => void handleFetchFile(hash)}
               disabled={loading || !hash.trim()}
               loading={loading}
               className="shrink-0 justify-center"
@@ -205,7 +210,6 @@ export function ReceiveShareModal({
           </div>
         </div>
 
-        {/* Error / Success Messages */}
         {error && (
           <div className="p-3.5 rounded-2xl bg-md-error-container text-xs text-md-on-error-container font-medium flex items-center gap-2.5 animate-slide-down">
             <span>⚠️</span> {error}
@@ -218,7 +222,6 @@ export function ReceiveShareModal({
           </div>
         )}
 
-        {/* Shared File Details Card */}
         {sharedFile && (
           <div className="space-y-4 animate-scale-in">
             <div className="p-4 rounded-2xl bg-md-surface-container border border-md-outline-variant/30 space-y-3.5">
@@ -247,78 +250,75 @@ export function ReceiveShareModal({
               )}
             </div>
 
-            {/* Folder Dropdown Selector */}
-            {topics.length > 0 && (
-              <div className="space-y-2 relative" ref={dropdownRef}>
-                <label className="text-[10px] font-semibold uppercase tracking-widest text-md-on-surface-variant">
-                  Save to Destination Folder
-                </label>
-                
-                <button
-                  type="button"
-                  onClick={() => setIsFolderDropdownOpen(!isFolderDropdownOpen)}
-                  className="w-full px-4 py-3 rounded-xl bg-md-surface-container-lowest border border-md-outline-variant hover:border-md-primary text-xs font-semibold text-md-on-surface flex items-center justify-between transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-base">📁</span>
-                    <span className="truncate text-md-on-surface font-semibold">
-                      {selectedTopicFolder ? selectedTopicFolder.title : "Select Folder"}
-                    </span>
-                  </div>
-                  <svg
-                    className={`w-4 h-4 text-md-on-surface-variant transition-transform duration-200 ${
-                      isFolderDropdownOpen ? "rotate-180 text-md-primary" : ""
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
+            {topics.length > 0 && driveConfig ? (
+              <>
+                <div className="space-y-2 relative" ref={dropdownRef}>
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-md-on-surface-variant">
+                    Save to Destination Folder
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsFolderDropdownOpen(!isFolderDropdownOpen)}
+                    className="w-full px-4 py-3 rounded-xl bg-md-surface-container-lowest border border-md-outline-variant hover:border-md-primary text-xs font-semibold text-md-on-surface flex items-center justify-between transition-all cursor-pointer"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base">📁</span>
+                      <span className="truncate text-md-on-surface font-semibold">
+                        {selectedTopicFolder ? selectedTopicFolder.title : "Select Folder"}
+                      </span>
+                    </div>
+                    <span>▾</span>
+                  </button>
 
-                {isFolderDropdownOpen && (
-                  <div className="absolute left-0 right-0 bottom-full mb-2 z-50 bg-md-surface-container border border-md-outline-variant/30 rounded-[16px] p-1.5 space-y-1 max-h-48 overflow-y-auto scrollbar-thin animate-scale-in" style={{ boxShadow: 'var(--md-elevation-2)' }}>
-                    {topics.map((t) => {
-                      const isSelected = t.id === selectedTopicId;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedTopicId(t.id);
-                            setIsFolderDropdownOpen(false);
-                          }}
-                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${
-                            isSelected
-                              ? "bg-md-secondary-container text-md-on-secondary-container"
-                              : "text-md-on-surface hover:bg-md-surface-container-high"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 truncate">
-                            <span className="text-base">📁</span>
-                            <span className="truncate">{t.title}</span>
-                          </div>
-                          {isSelected && <span className="text-xs">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                  {isFolderDropdownOpen && (
+                    <div className="absolute left-0 right-0 bottom-full mb-2 z-50 bg-md-surface-container border border-md-outline-variant/30 rounded-[16px] p-1.5 space-y-1 max-h-48 overflow-y-auto scrollbar-thin animate-scale-in" style={{ boxShadow: "var(--md-elevation-2)" }}>
+                      {topics.map((t) => {
+                        const isSelected = t.id === selectedTopicId;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTopicId(t.id);
+                              setIsFolderDropdownOpen(false);
+                            }}
+                            className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? "bg-md-secondary-container text-md-on-secondary-container"
+                                : "text-md-on-surface hover:bg-md-surface-container-high"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate">
+                              <span className="text-base">📁</span>
+                              <span className="truncate">{t.title}</span>
+                            </div>
+                            {isSelected && <span className="text-xs">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  variant="primary"
+                  onClick={handleSendViaBot}
+                  disabled={sendingBotMsg}
+                  loading={sendingBotMsg}
+                  className="w-full justify-center"
+                  size="lg"
+                >
+                  Save to Folder via Bot
+                </Button>
+              </>
+            ) : (
+              <a
+                href={buildSsoSignInUrl(window.location.href)}
+                className="w-full py-3 rounded-xl bg-md-primary text-md-on-primary text-xs font-bold flex items-center justify-center gap-2 hover:brightness-95 transition-all"
+              >
+                Sign in with Gothwad Account to Import File
+              </a>
             )}
-
-            <Button
-              variant="primary"
-              onClick={handleSendViaBot}
-              disabled={sendingBotMsg}
-              loading={sendingBotMsg}
-              className="w-full justify-center"
-              size="lg"
-            >
-              Save to Folder via Bot
-            </Button>
           </div>
         )}
       </div>

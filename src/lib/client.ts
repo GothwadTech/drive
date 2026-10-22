@@ -4,6 +4,29 @@ import { getApiCredentials, LS_SESSION, DEVICE_MODEL, SYSTEM_VERSION, APP_VERSIO
 
 let _client: TelegramClient | null = null;
 let _cachedSessionString: string = "";
+let _cloudVaultActive = false;
+const _sessionPersistListeners = new Set<(token: string) => void>();
+
+export function setMemorySession(session: string | null, vaultActive = true): void {
+  _cachedSessionString = session?.trim() || "";
+  _cloudVaultActive = vaultActive;
+  if (vaultActive) {
+    try {
+      localStorage.removeItem(LS_SESSION);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function getMemorySession(): string {
+  return _cachedSessionString;
+}
+
+export function onSessionPersisted(cb: (token: string) => void): () => void {
+  _sessionPersistListeners.add(cb);
+  return () => _sessionPersistListeners.delete(cb);
+}
 let _monitorInterval: ReturnType<typeof setInterval> | null = null;
 let _reconnecting = false;
 const _connectionListeners = new Set<(connected: boolean) => void>();
@@ -77,7 +100,7 @@ export function getClient(): TelegramClient {
   if (_clientInitPromise) return _clientInitPromise as any;
 
   _clientInitPromise = (async () => {
-    const saved = localStorage.getItem(LS_SESSION) ?? "";
+    const saved = _cachedSessionString || localStorage.getItem(LS_SESSION) || "";
     const { apiId, apiHash } = getApiCredentials();
 
     _client = await createClientFromSession(saved, apiId, apiHash);
@@ -95,7 +118,18 @@ export async function persistSession(): Promise<string> {
   try {
     const token = await _client.exportSession();
     _cachedSessionString = token;
-    localStorage.setItem(LS_SESSION, token);
+    if (_cloudVaultActive) {
+      localStorage.removeItem(LS_SESSION);
+    } else {
+      localStorage.setItem(LS_SESSION, token);
+    }
+    _sessionPersistListeners.forEach((fn) => {
+      try {
+        fn(token);
+      } catch {
+        // ignore
+      }
+    });
     return token;
   } catch (err) {
     console.warn("Failed to export session:", err);
@@ -119,16 +153,17 @@ export async function destroyClient(): Promise<void> {
     } catch { /* ignore */ }
     _client = null;
   }
+  _clientInitPromise = null;
   _isConnected = false;
   _cachedSessionString = "";
   localStorage.removeItem(LS_SESSION);
 }
 
 /**
- * True when a session string already exists in storage.
+ * True when a session string already exists in storage or memory.
  */
 export function hasPersistedSession(): boolean {
-  const s = localStorage.getItem(LS_SESSION);
+  const s = _cachedSessionString || localStorage.getItem(LS_SESSION);
   return !!s && s.length > 0;
 }
 

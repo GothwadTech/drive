@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import type { TelegramClient } from "@mtcute/web";
 import type { DriveFile, DriveConfig } from "../../types";
 import { formatBytes } from "../../lib/manifest";
-import { FileIcon } from "./FileIcon";
 import { FileCardThumbnail } from "./FileCardThumbnail";
+import { FileGridMenu } from "./FileGridMenu";
 import { Pagination } from "../ui/Pagination";
 
 interface FileGridProps {
@@ -87,17 +87,12 @@ export function FileGrid({
     let y = e.clientY;
 
     if (anchorRect) {
-      if (anchorRect.left + menuWidth > window.innerWidth - padding) {
-        x = anchorRect.right - menuWidth;
-      } else {
-        x = anchorRect.left;
-      }
-
-      if (anchorRect.bottom + menuHeight > window.innerHeight - padding) {
-        y = anchorRect.top - menuHeight - 6;
-      } else {
-        y = anchorRect.bottom + 6;
-      }
+      x = anchorRect.left + menuWidth > window.innerWidth - padding
+        ? anchorRect.right - menuWidth
+        : anchorRect.left;
+      y = anchorRect.bottom + menuHeight > window.innerHeight - padding
+        ? anchorRect.top - menuHeight - 6
+        : anchorRect.bottom + 6;
     } else {
       if (x + menuWidth > window.innerWidth - padding) {
         x = window.innerWidth - menuWidth - padding;
@@ -117,6 +112,7 @@ export function FileGrid({
       file,
     });
   };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 sm:gap-6">
@@ -147,7 +143,7 @@ export function FileGrid({
         </div>
         <p className="text-md-on-surface font-semibold mb-1 text-sm">No files in this folder</p>
         <p className="text-md-on-surface-variant text-xs max-w-[260px] leading-relaxed">
-          Drag & drop files anywhere on the screen to upload instantly to this folder.
+          Drag &amp; drop files anywhere on the screen to upload instantly to this folder.
         </p>
       </div>
     );
@@ -173,7 +169,6 @@ export function FileGrid({
 
   return (
     <div className="space-y-4">
-      {/* Selection Control Bar */}
       <div className="flex items-center justify-between px-1 select-none">
         <div className="flex items-center gap-2.5">
           <button
@@ -213,7 +208,6 @@ export function FileGrid({
         )}
       </div>
 
-      {/* Grid Canvas */}
       <div className="space-y-8 pb-6">
         {sortedKeys.map((key) => {
           const sectionFiles = groups.get(key)!;
@@ -227,43 +221,40 @@ export function FileGrid({
               <h3 className="text-[11px] font-semibold uppercase tracking-widest text-md-on-surface-variant select-none px-1">
                 {label}
               </h3>
-              <div className={
-                gridBoxSize === "small" ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3" :
-                gridBoxSize === "medium" ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3.5" :
-                "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
-              }>
+              <div
+                className={
+                  gridBoxSize === "small"
+                    ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3"
+                    : gridBoxSize === "medium"
+                      ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3.5"
+                      : "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
+                }
+              >
                 {sectionFiles.map((file, idx) => {
                   const isSelected = selectedFileIds.has(file.id);
                   const isLiked = favouriteChunks.has(file.manifest.chunks.join(","));
-                  
-                  // Dynamic styles based on gridBoxSize
-                  const cardRoundClass = 
-                    gridBoxSize === "small" ? "rounded-2xl" : "rounded-3xl";
-
-                  const cardPadding = 
-                    gridBoxSize === "small" ? "p-2.5" : "p-3";
-
-                  const titleTextSize = 
-                    gridBoxSize === "small" ? "text-[11px]" :
-                    gridBoxSize === "medium" ? "text-[11px] font-bold" : "text-xs font-bold";
-
-                  const metaRowClass = 
-                    gridBoxSize === "small" ? "hidden" : "flex items-center justify-between mt-1 h-4.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-tight relative";
-
-                  const checkBtnSize = 
-                    gridBoxSize === "small" ? "w-5 h-5" : "w-5.5 h-5.5";
-                  
-                  const checkIconSize = 
-                    gridBoxSize === "small" ? "w-3 h-3" : "w-3.5 h-3.5";
-
-                  const likeBtnSize = 
-                    gridBoxSize === "small" ? "w-6.5 h-6.5" :
-                    gridBoxSize === "medium" ? "w-7 h-7" : "w-7.5 h-7.5";
-
-                  const likeIconSize = 
-                    gridBoxSize === "small" ? "w-3.5 h-3.5" : "w-4 h-4";
-
-                  const extTagTextSize = 
+                  const cardRoundClass = gridBoxSize === "small" ? "rounded-2xl" : "rounded-3xl";
+                  const cardPadding = gridBoxSize === "small" ? "p-2.5" : "p-3";
+                  const titleTextSize =
+                    gridBoxSize === "small"
+                      ? "text-[11px]"
+                      : gridBoxSize === "medium"
+                        ? "text-[11px] font-bold"
+                        : "text-xs font-bold";
+                  const metaRowClass =
+                    gridBoxSize === "small"
+                      ? "hidden"
+                      : "flex items-center justify-between mt-1 h-4.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-tight relative";
+                  const checkBtnSize = gridBoxSize === "small" ? "w-5 h-5" : "w-5.5 h-5.5";
+                  const checkIconSize = gridBoxSize === "small" ? "w-3 h-3" : "w-3.5 h-3.5";
+                  const likeBtnSize =
+                    gridBoxSize === "small"
+                      ? "w-6.5 h-6.5"
+                      : gridBoxSize === "medium"
+                        ? "w-7 h-7"
+                        : "w-7.5 h-7.5";
+                  const likeIconSize = gridBoxSize === "small" ? "w-3.5 h-3.5" : "w-4 h-4";
+                  const extTagTextSize =
                     gridBoxSize === "small" ? "text-[8px] px-1" : "text-[8.5px] px-1.5";
 
                   return (
@@ -278,7 +269,6 @@ export function FileGrid({
                       onClick={() => onPreview(file)}
                       onContextMenu={(e) => handleContextMenu(e, file)}
                     >
-                      {/* Thumbnail Container */}
                       <div className="relative aspect-[4/3] bg-md-surface-container flex items-center justify-center overflow-hidden shrink-0">
                         <FileCardThumbnail
                           file={file}
@@ -286,9 +276,8 @@ export function FileGrid({
                           driveConfig={driveConfig}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                        
-                        {/* Floating Checkbox */}
-                        <div 
+
+                        <div
                           className={`absolute top-2.5 left-2.5 z-10 transition-opacity duration-200 ${
                             isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                           }`}
@@ -297,8 +286,8 @@ export function FileGrid({
                           <button
                             onClick={() => onToggleSelect?.(file.id)}
                             className={`${checkBtnSize} rounded-full border flex items-center justify-center transition-all duration-200 ${
-                              isSelected 
-                                ? "bg-md-primary border-md-primary text-md-on-primary shadow-md scale-100" 
+                              isSelected
+                                ? "bg-md-primary border-md-primary text-md-on-primary shadow-md scale-100"
                                 : "border-md-outline-variant bg-white/70 dark:bg-md-surface-container/70 hover:scale-110 active:scale-95"
                             }`}
                           >
@@ -310,12 +299,10 @@ export function FileGrid({
                           </button>
                         </div>
 
-                        {/* File Extension tag */}
                         <div className={`absolute top-2.5 right-2.5 bg-md-inverse-surface/70 backdrop-blur-[6px] py-0.5 rounded-[6px] font-semibold uppercase text-md-inverse-on-surface tracking-wider select-none border border-white/5 shadow-sm ${extTagTextSize}`}>
                           {file.name.split(".").pop()?.toLowerCase() || "file"}
                         </div>
 
-                        {/* Floating Favorite Button */}
                         <div
                           className={`absolute bottom-2.5 right-2.5 z-10 transition-opacity duration-200 ${
                             isLiked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
@@ -325,8 +312,8 @@ export function FileGrid({
                           <button
                             onClick={() => onToggleLike?.(file)}
                             className={`${likeBtnSize} rounded-full border flex items-center justify-center transition-all duration-200 ${
-                              isLiked 
-                                ? "bg-md-error border-md-error text-md-on-error shadow-md scale-100" 
+                              isLiked
+                                ? "bg-md-error border-md-error text-md-on-error shadow-md scale-100"
                                 : "border-md-outline-variant bg-white/70 dark:bg-md-surface-container/70 hover:scale-110 active:scale-95 text-md-on-surface-variant"
                             }`}
                           >
@@ -337,20 +324,16 @@ export function FileGrid({
                         </div>
                       </div>
 
-                      {/* Title & Metadata */}
                       <div className={`${cardPadding} select-none flex flex-col justify-between flex-grow min-w-0`}>
                         <p className={`${titleTextSize} text-md-on-surface truncate tracking-tight group-hover:text-md-primary transition-colors`} title={file.name}>
                           {file.name}
                         </p>
 
-                        {/* Subtitle / Action Row */}
                         <div className={metaRowClass}>
-                          {/* Default State: File size */}
                           <span className="group-hover:opacity-0 transition-opacity duration-150 shrink-0">
                             {formatBytes(file.size)}
                           </span>
-                          
-                          {/* Hover State: Actions bar */}
+
                           <div
                             className="absolute bottom-0 right-0 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity duration-200"
                             onClick={(e) => e.stopPropagation()}
@@ -388,134 +371,36 @@ export function FileGrid({
         })}
       </div>
 
-      {contextMenu.visible && contextMenu.file && (
-        <div
-          className="fixed z-[100] bg-md-surface-container backdrop-blur-xl border border-md-outline-variant/30 rounded-[12px] py-2 min-w-[170px] animate-scale-in select-none text-left"
-          style={{
-            top: `${contextMenu.y}px`,
-            left: `${contextMenu.x}px`,
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
           }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => {
-              if (contextMenu.file) onPreview(contextMenu.file);
-              setContextMenu((prev) => ({ ...prev, visible: false }));
-            }}
-            className="w-full text-left px-3.5 py-2.5 text-xs font-medium text-md-on-surface hover:bg-md-surface-container-high flex items-center gap-2 cursor-pointer transition-colors min-h-[40px]"
-          >
-            <svg className="w-4 h-4 text-md-on-surface-variant" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            Open / View
-          </button>
+        />
+      )}
 
-          {onOpenDetails && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onOpenDetails(contextMenu.file);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-medium text-md-on-surface hover:bg-md-surface-container-high flex items-center gap-2 cursor-pointer transition-colors min-h-[40px]"
-            >
-              <svg className="w-4 h-4 text-md-on-surface-variant" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Details
-            </button>
-          )}
-          
-          <button
-            onClick={() => {
-              if (contextMenu.file) onDownload(contextMenu.file);
-              setContextMenu((prev) => ({ ...prev, visible: false }));
-            }}
-            className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-surface-700 dark:text-surface-600 hover:bg-brand-500/10 hover:text-brand-500 flex items-center gap-2 cursor-pointer transition-colors"
-          >
-            <svg className="w-4 h-4 text-surface-450 dark:text-surface-550" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download
-          </button>
-
-          {onShare && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onShare(contextMenu.file);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-surface-700 dark:text-surface-600 hover:bg-brand-500/10 hover:text-brand-500 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <svg className="w-4 h-4 text-surface-450 dark:text-surface-550" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              Share File
-            </button>
-          )}
-
-          {onToggleSelect && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onToggleSelect(contextMenu.file.id);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-surface-700 dark:text-surface-600 hover:bg-brand-500/10 hover:text-brand-500 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <svg className="w-4 h-4 text-surface-450 dark:text-surface-550" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {selectedFileIds.has(contextMenu.file.id) ? "Deselect" : "Select"}
-            </button>
-          )}
-
-          {onOpenMoveCopy && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onOpenMoveCopy([contextMenu.file]);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-surface-700 dark:text-surface-600 hover:bg-brand-500/10 hover:text-brand-500 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <svg className="w-4 h-4 text-surface-450 dark:text-surface-550" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              Move / Copy
-            </button>
-          )}
-
-          {(onRename || onDelete || onOpenMoveCopy) && <div className="h-[1px] bg-md-outline-variant/30 my-1" />}
-
-          {onRename && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onRename(contextMenu.file);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-surface-700 dark:text-surface-600 hover:bg-brand-500/10 hover:text-brand-500 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <svg className="w-4 h-4 text-surface-450 dark:text-surface-550" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-              </svg>
-              Rename
-            </button>
-          )}
-
-          {onDelete && (
-            <button
-              onClick={() => {
-                if (contextMenu.file) onDelete(contextMenu.file);
-                setContextMenu((prev) => ({ ...prev, visible: false }));
-              }}
-              className="w-full text-left px-3.5 py-2.5 text-xs font-medium text-md-error hover:bg-md-error-container/30 flex items-center gap-2 cursor-pointer transition-colors min-h-[40px]"
-            >
-              <svg className="w-4 h-4 text-md-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          )}
-        </div>
+      {contextMenu.visible && contextMenu.file && (
+        <FileGridMenu
+          file={contextMenu.file}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isSelected={selectedFileIds.has(contextMenu.file.id)}
+          onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+          onPreview={onPreview}
+          onOpenDetails={onOpenDetails}
+          onDownload={onDownload}
+          onShare={onShare}
+          onToggleSelect={onToggleSelect}
+          onOpenMoveCopy={onOpenMoveCopy}
+          onRename={onRename}
+          onDelete={onDelete}
+        />
       )}
     </div>
   );

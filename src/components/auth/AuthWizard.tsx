@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { Phone, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Shield } from "lucide-react";
-import type { AuthState } from "../../types";
+import { Phone, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, Shield, LogIn } from "lucide-react";
+import type { AuthState, GothwadSsoUser } from "../../types";
+import { buildSsoSignInUrl } from "../../lib/gothwadSso";
 
 interface AuthWizardProps {
   state: AuthState;
   onPhoneSubmit: (phone: string) => void;
   onOtpSubmit: (code: string) => void;
   onPasswordSubmit: (password: string) => void;
+  ssoUser?: GothwadSsoUser | null;
+  onSignOutSso?: () => void;
 }
 
 export function AuthWizard({
@@ -14,6 +17,8 @@ export function AuthWizard({
   onPhoneSubmit,
   onOtpSubmit,
   onPasswordSubmit,
+  ssoUser,
+  onSignOutSso,
 }: AuthWizardProps) {
   const [phone, setPhone] = useState(state.phone || "+91 ");
   const [code, setCode] = useState("");
@@ -62,7 +67,6 @@ export function AuthWizard({
   };
 
   const errorMessage = state.error || localError;
-
   const isPhoneStep = state.step !== "otp" && state.step !== "password";
 
   const buttonDisabled = isPhoneStep
@@ -73,14 +77,12 @@ export function AuthWizard({
 
   return (
     <div className="min-h-screen h-full overflow-y-auto bg-white dark:bg-[#212121] text-gray-900 dark:text-gray-100 flex flex-col items-center justify-center relative font-sans transition-colors duration-300 selection:bg-[#0494f4]/30 selection:text-white">
-      {/* Background ambient accents */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none select-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[100px] bg-[#0494f4]/15" />
         <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[100px] bg-[#0494f4]/10 dark:bg-indigo-600/10" />
       </div>
 
       <div className="w-full px-5 sm:px-8 pt-10 sm:pt-12 pb-16 z-10 flex flex-col items-center min-h-full relative max-w-md mx-auto my-auto animate-fade-in">
-        {/* Header Card */}
         <div className="w-full bg-white dark:bg-[#282828] border border-gray-200 dark:border-[#383838] rounded-2xl p-6 text-center flex flex-col items-center justify-center mb-5 shadow-sm dark:shadow-xl dark:shadow-black/20 transition-colors">
           <div className="w-16 h-16 bg-gray-50 dark:bg-[#1a1a1a] rounded-2xl shadow-inner flex items-center justify-center border border-gray-200 dark:border-[#383838] p-0 overflow-hidden mb-3.5 group transition-transform hover:scale-105">
             <img
@@ -98,18 +100,48 @@ export function AuthWizard({
           <h2 className="text-[26px] font-black text-gray-900 dark:text-white tracking-tight mb-1">
             Gothwad Drive
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed max-w-[270px] mx-auto font-medium">
+          <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed max-w-[290px] mx-auto font-medium">
             {state.step === "otp"
               ? "Enter the 5-digit verification code sent to your Telegram app."
               : state.step === "password"
                 ? "Two-Step Verification (2FA) is enabled. Enter your cloud password."
-                : "Infinite, serverless cloud storage powered by Telegram MTProto."}
+                : ssoUser
+                  ? "One-time Cloud Vault activation: link your Telegram MTProto engine to your Gothwad Account."
+                  : "Infinite, serverless cloud storage powered by Telegram MTProto and Gothwad SSO."}
           </p>
+
+          {ssoUser ? (
+            <div className="mt-4 w-full flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-[#0494f4]/10 border border-[#0494f4]/25 text-left">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">
+                  {ssoUser.name || ssoUser.email}
+                </p>
+                <p className="text-[10px] text-[#0494f4] font-medium truncate">
+                  {ssoUser.email} • Encrypted D1 Vault Ready
+                </p>
+              </div>
+              {onSignOutSso && (
+                <button
+                  type="button"
+                  onClick={onSignOutSso}
+                  className="text-[10px] font-bold text-gray-500 hover:text-red-500 px-2 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                >
+                  Switch SSO
+                </button>
+              )}
+            </div>
+          ) : (
+            <a
+              href={buildSsoSignInUrl()}
+              className="mt-4 w-full py-2.5 px-4 rounded-xl bg-[#0494f4]/10 hover:bg-[#0494f4]/20 border border-[#0494f4]/30 text-[#0494f4] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <LogIn size={14} />
+              <span>Sign in with Gothwad Account (SSO)</span>
+            </a>
+          )}
         </div>
 
-        {/* Active Form Card */}
         <div className="w-full bg-white dark:bg-[#282828] border border-gray-200 dark:border-[#383838] rounded-2xl p-6 shadow-sm dark:shadow-xl dark:shadow-black/20 transition-colors">
-          {/* Phone */}
           {isPhoneStep && (
             <form id="authForm" onSubmit={handlePhoneSubmit}>
               <div className="relative group">
@@ -134,7 +166,6 @@ export function AuthWizard({
             </form>
           )}
 
-          {/* OTP / Verification Code */}
           {state.step === "otp" && (
             <form id="authForm" onSubmit={handleOtpSubmit} className="space-y-4">
               <div className="bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#383838] rounded-xl p-3 flex items-center justify-between text-xs transition-colors">
@@ -170,7 +201,6 @@ export function AuthWizard({
             </form>
           )}
 
-          {/* 2FA Password */}
           {state.step === "password" && (
             <form id="authForm" onSubmit={handlePasswordSubmit} className="space-y-4">
               <div className="relative group">
@@ -203,14 +233,12 @@ export function AuthWizard({
           )}
         </div>
 
-        {/* Error display */}
         {errorMessage && (
           <div className="mt-4 w-full text-red-500 text-xs font-semibold text-center bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20 leading-relaxed">
             {errorMessage}
           </div>
         )}
 
-        {/* Primary action — full-width standalone button (outside the card) */}
         <button
           type="submit"
           form="authForm"
@@ -230,19 +258,17 @@ export function AuthWizard({
             </>
           ) : (
             <>
-              <span>Next</span>
+              <span>{ssoUser ? "Activate Cloud Vault" : "Next"}</span>
               <ArrowRight size={16} />
             </>
           )}
         </button>
 
-        {/* Security details badge */}
         <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-gray-500 dark:text-gray-400 select-none">
           <Shield size={14} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
-          <span>End-to-End Encrypted via Telegram MTProto</span>
+          <span>End-to-End Encrypted via Telegram MTProto & AES-256-GCM D1 Vault</span>
         </div>
 
-        {/* Footer Gothwad / Atmanirbhar Bharat Branding Card */}
         <div className="w-full bg-white dark:bg-[#282828] border border-gray-200 dark:border-[#383838] rounded-2xl p-5 text-center flex flex-col items-center justify-center mt-5 shadow-sm select-none gap-3.5 transition-colors">
           <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed max-w-[280px] mx-auto">
             By using <span className="font-bold text-[#0494f4]">Gothwad Drive</span>, you agree to our{" "}
@@ -254,21 +280,21 @@ export function AuthWizard({
               Privacy Policy
             </span>.
           </p>
-          <div className="w-full h-[1px] bg-gray-200 dark:bg-white/10"></div>
+          <div className="w-full h-[1px] bg-gray-200 dark:bg-white/10" />
           <div className="text-center max-w-[280px] mx-auto">
             <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400/80 block leading-relaxed">
               <span className="font-bold text-[#0494f4]">Gothwad Drive</span> is proudly developed and managed by{" "}
               <a
-                href="https://gothwadtechnologies.com"
+                href="https://gothwadtech.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold text-[#0494f4] hover:underline cursor-pointer decoration-[#0494f4] decoration-2"
               >
-                Gothwad
+                Gothwad Technologies
               </a>{" "}
-              in support of India&apos;s Atmanirbhar Bharat initiative. If you have any concerns, please{" "}
+              for sovereign, self-reliant digital infrastructure. If you have any concerns, please{" "}
               <a
-                href="mailto:support@gothwadtechnologies.com"
+                href="mailto:support@gothwadtech.com"
                 className="font-bold text-[#0494f4] hover:underline cursor-pointer decoration-[#0494f4] decoration-2"
               >
                 contact us

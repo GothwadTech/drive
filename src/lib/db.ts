@@ -1,6 +1,6 @@
 import type { DriveFile } from "../types";
 
-const DB_NAME = "ClashDriveDB";
+const DB_NAME = "GothwadDriveDB";
 const DB_VERSION = 1;
 const STORE_NAME = "folder_index";
 
@@ -23,7 +23,6 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 function sanitizeDriveFile(file: DriveFile): DriveFile {
-  // Strip raw Telegram message object to save memory and avoid non-cloneable reference errors in IndexedDB
   const { message, ...rest } = file;
   return rest;
 }
