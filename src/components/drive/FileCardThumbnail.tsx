@@ -192,13 +192,7 @@ async function loadThumbnail(
   const EXCLUDED_THUMB_EXTS = ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "apk", "apks", "xapk", "exe", "msi", "dmg", "pkg", "iso", "bin"];
   const isExcluded = EXCLUDED_THUMB_EXTS.includes(ext);
 
-  const isVideo = ["mp4", "webm", "mkv", "avi", "mov", "3gp", "flv", "ts"].includes(ext);
   const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif", "heic", "tiff"].includes(ext);
-  const isEpub = ext === "epub";
-  const isPdf = ext === "pdf";
-  const isDocx = ext === "docx" || ext === "doc";
-  const isXlsx = ext === "xlsx" || ext === "xls";
-  const isAudio = ["mp3", "flac", "wav", "m4a", "ogg", "aac", "dsf"].includes(ext);
 
   const MAX_ON_THE_FLY_SIZE = 3 * 1024 * 1024;
   const shouldTryOnTheFly = !isExcluded && file.size <= MAX_ON_THE_FLY_SIZE;
@@ -270,32 +264,26 @@ export function FileCardThumbnail({
   const MAX_ON_THE_FLY_SIZE = 3 * 1024 * 1024;
   const canLoadThumb = hasUploadedThumb || (!isExcluded && file.size <= MAX_ON_THE_FLY_SIZE);
 
-  const [thumbUrl, setThumbUrl] = useState<string | null>(() => {
-    if (hasUploadedThumb) {
-      return thumbnailCache.get(file.manifest.thumb!) || null;
-    }
-    return thumbnailCache.get(fileId) || null;
-  });
+  const cacheKey = hasUploadedThumb ? file.manifest.thumb! : fileId;
+  const cachedThumb = thumbnailCache.get(cacheKey) || null;
+  const [fetchedThumbUrl, setFetchedThumbUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const thumbUrl = cachedThumb || fetchedThumbUrl;
 
   useEffect(() => {
-    if (!client || !driveConfig || !canLoadThumb) {
-      return;
-    }
-
-    const cacheKey = hasUploadedThumb ? file.manifest.thumb! : fileId;
-    if (thumbnailCache.has(cacheKey)) {
-      setThumbUrl(thumbnailCache.get(cacheKey) || null);
+    if (!client || !driveConfig || !canLoadThumb || thumbnailCache.has(cacheKey)) {
       return;
     }
 
     let active = true;
-    setLoading(true);
+    const timer = window.setTimeout(() => {
+      if (active) setLoading(true);
+    }, 0);
 
     loadThumbnail(file, client, driveConfig)
       .then((url) => {
         if (!active) return;
-        setThumbUrl(url);
+        setFetchedThumbUrl(url);
         setLoading(false);
       })
       .catch(() => {
@@ -305,8 +293,9 @@ export function FileCardThumbnail({
 
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [file, client, driveConfig, fileId, canLoadThumb, hasUploadedThumb]);
+  }, [file, client, driveConfig, fileId, canLoadThumb, hasUploadedThumb, cacheKey]);
 
   if (loading) {
     return (

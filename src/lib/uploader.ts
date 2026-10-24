@@ -127,26 +127,6 @@ export async function generateImageThumbnail(file: File | Blob): Promise<Blob | 
   });
 }
 
-async function generateAudioThumbnail(_file: File): Promise<Blob | null> {
-  return null;
-}
-
-async function generatePdfThumbnail(_file: File): Promise<Blob | null> {
-  return null;
-}
-
-async function generateDocxThumbnail(_file: File): Promise<Blob | null> {
-  return null;
-}
-
-async function generateXlsxThumbnail(_file: File): Promise<Blob | null> {
-  return null;
-}
-
-async function generateApkThumbnail(_file: File): Promise<Blob | null> {
-  return null;
-}
-
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   concurrency: number,

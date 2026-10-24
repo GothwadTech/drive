@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
@@ -18,13 +18,13 @@ export function RenameModal({
   itemType,
   onSubmit,
 }: RenameModalProps) {
-  const [name, setName] = useState(initialName);
-
-  useEffect(() => {
-    if (open) {
-      setName(initialName);
-    }
-  }, [open, initialName]);
+  const [nameState, setNameState] = useState<{ key: string; value: string }>({
+    key: `${open}:${initialName}`,
+    value: initialName,
+  });
+  const currentKey = `${open}:${initialName}`;
+  const name = nameState.key === currentKey ? nameState.value : initialName;
+  const setName = (val: string) => setNameState({ key: currentKey, value: val });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

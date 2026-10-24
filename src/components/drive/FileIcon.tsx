@@ -170,12 +170,11 @@ function FileBox({ gradId, colors, children, className = "w-5 h-5" }: FileBoxPro
 }
 
 export function FileIcon({ fileName, category, className = "w-5 h-5" }: FileIconProps) {
-  let label = "FILE";
   let gradId = "defGrad";
   let colors: [string, string] = ["#94a3b8", "#475569"];
   let iconType: "doc" | "image" | "video" | "audio" | "archive" | "code" | "data" | "executable" | "apk" | "disc" | "folder" = "doc";
 
-  let type = category || "";
+  const type = category || "";
 
   if (type === "all" || type === "folder") {
     iconType = "folder";
@@ -183,7 +182,6 @@ export function FileIcon({ fileName, category, className = "w-5 h-5" }: FileIcon
     const config = CAT_MAP[type];
     colors = config.gradient;
     iconType = config.iconType;
-    label = config.label;
     gradId = `${type}Grad`;
   } else if (fileName) {
     const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -191,10 +189,8 @@ export function FileIcon({ fileName, category, className = "w-5 h-5" }: FileIcon
       const config = EXT_MAP[ext];
       colors = config.gradient;
       iconType = config.iconType;
-      label = config.label;
       gradId = `${ext}Grad`;
     } else {
-      label = ext.toUpperCase().slice(0, 4) || "FILE";
       colors = ["#94a3b8", "#475569"];
       iconType = "doc";
       gradId = "defGrad";

@@ -134,6 +134,30 @@ export async function resolveGothwadSession(
     });
 
     const setCookies = extractAllowedSetCookies(res.headers);
+    if (res.status >= 300 && res.status < 400) {
+      return {
+        authenticated: false,
+        activeId: null,
+        authuser: 0,
+        user: null,
+        accounts: [],
+        setCookies,
+        upstreamStatus: 503,
+      };
+    }
+
+    if (res.status === 429) {
+      return {
+        authenticated: false,
+        activeId: null,
+        authuser: 0,
+        user: null,
+        accounts: [],
+        setCookies,
+        upstreamStatus: 429,
+      };
+    }
+
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       return {
@@ -148,7 +172,19 @@ export async function resolveGothwadSession(
     }
 
     const data = (await res.json().catch(() => null)) as Record<string, any> | null;
-    if (!res.ok || !data?.authenticated || !data?.user) {
+    if (!data || typeof data !== 'object') {
+      return {
+        authenticated: false,
+        activeId: null,
+        authuser: 0,
+        user: null,
+        accounts: [],
+        setCookies,
+        upstreamStatus: 503,
+      };
+    }
+
+    if (res.status >= 500) {
       return {
         authenticated: false,
         activeId: null,
@@ -156,7 +192,19 @@ export async function resolveGothwadSession(
         user: null,
         accounts: [],
         setCookies,
-        upstreamStatus: res.status >= 500 ? 503 : 401,
+        upstreamStatus: 503,
+      };
+    }
+
+    if (!res.ok || !data.authenticated || !data.user) {
+      return {
+        authenticated: false,
+        activeId: null,
+        authuser: authuserSelector ? Number(authuserSelector) : 0,
+        user: null,
+        accounts: [],
+        setCookies,
+        upstreamStatus: 401,
       };
     }
 
@@ -231,12 +279,30 @@ export async function resolveGothwadSession(
   }
 }
 
+export function getTelegramApiConfig(env: Env): { apiId: number; apiHash: string } | null {
+  const rawApiId = Number.parseInt(String(env.TELEGRAM_API_ID || '').trim(), 10);
+  const apiId = Number.isInteger(rawApiId) && rawApiId > 0 && rawApiId !== 2496 ? rawApiId : 0;
+  const rawHash = String(env.TELEGRAM_API_HASH || '').trim();
+  const apiHash = /^[a-fA-F0-9]{32}$/.test(rawHash) ? rawHash : '';
+  return apiId > 0 && apiHash ? { apiId, apiHash } : null;
+}
+
 export async function handleMeEndpoint(
   request: Request,
   env: Env,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const session = await resolveGothwadSession(request, env, fetchImpl);
+  if (session.upstreamStatus === 429) {
+    return errorResponse(
+      request,
+      env,
+      'rate_limited',
+      429,
+      session.setCookies,
+      'Too many authentication requests. Please wait a moment and retry.',
+    );
+  }
   if (session.upstreamStatus === 503) {
     return errorResponse(
       request,
@@ -247,11 +313,6 @@ export async function handleMeEndpoint(
       'Authentication service is temporarily unavailable.',
     );
   }
-
-  const rawApiId = Number.parseInt(String(env.TELEGRAM_API_ID || '').trim(), 10);
-  const apiId = Number.isInteger(rawApiId) && rawApiId > 0 && rawApiId !== 2496 ? rawApiId : 0;
-  const rawHash = String(env.TELEGRAM_API_HASH || '').trim();
-  const apiHash = /^[a-fA-F0-9]{32}$/.test(rawHash) ? rawHash : '';
 
   return jsonResponse(
     request,
@@ -266,7 +327,7 @@ export async function handleMeEndpoint(
       appDomain: getAppDomain(env),
       accountsWebOrigin: getAccountsWebOrigin(env),
       accountsApiOrigin: getAccountsApiOrigin(env),
-      telegramApi: apiId > 0 && apiHash ? { apiId, apiHash } : null,
+      telegramApi: getTelegramApiConfig(env),
     },
     200,
     session.setCookies,

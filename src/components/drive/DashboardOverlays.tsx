@@ -73,6 +73,7 @@ export interface DashboardProps {
   onSwitchSsoAccount?: (acct: GothwadAccountItem) => void | Promise<void>;
   onSignOutSsoSlot?: (slotId: string) => void | Promise<void>;
   onSignOutAllSso?: () => void | Promise<void>;
+  onUnlinkVault?: () => void | Promise<void>;
 }
 
 export const FolderFilterSortBar: React.FC<{

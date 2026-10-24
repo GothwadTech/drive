@@ -1,26 +1,12 @@
-import { useEffect } from "react";
 import type { TelegramClient } from "@mtcute/web";
-import type {
-  DriveConfig,
-  DriveFile,
-  TopicFolder,
-  UserProfile,
-  GothwadSsoUser,
-  GothwadAccountItem,
-} from "../types";
+import type { DriveConfig, DriveFile } from "../types";
 import {
   downloadFileToMemory,
   mimeTypeFromName,
   preFetchMessages,
 } from "./downloader";
-import {
-  getCurrentAuthuser,
-  fetchSsoMe,
-  fetchDriveVault,
-  saveDriveVault,
-  readLegacyLocalStorageSession,
-  scrubLegacyLocalStorageSessions,
-} from "./gothwadSso";
+
+export { useSsoVaultBootAndSync } from "../hooks/useSsoVaultBootAndSync";
 
 export const MB = 1024 * 1024;
 export const MAX_IMAGE_PREVIEW_BYTES = 80 * MB;
@@ -62,7 +48,7 @@ export function getPreviewKind(file: DriveFile) {
 }
 
 export async function ensureStreamWorkerReady() {
-  if (!("serviceWorker" in navigator)) return false;
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return false;
 
   try {
     let registration = await navigator.serviceWorker.getRegistration();
@@ -212,80 +198,4 @@ export async function loadFilePreviewUrl(
       cb.setPreviewError(err instanceof Error ? err.message : "Preview download failed.");
     }
   }
-}
-
-export function useSsoVaultBootAndSync(params: {
-  connected: boolean;
-  ssoUser: GothwadSsoUser | null;
-  userProfile: UserProfile | null;
-  driveConfig: DriveConfig | null;
-  topics: TopicFolder[];
-  authuser: number;
-  setAuthuser: (slot: number) => void;
-  setSsoUser: (user: GothwadSsoUser | null) => void;
-  setSsoAccounts: (accts: GothwadAccountItem[]) => void;
-  setSsoActiveId: (id: string | null) => void;
-  setBooting: (booting: boolean) => void;
-  hydrateCachedDrive: (cfg?: DriveConfig | null, topics?: TopicFolder[]) => void;
-  tryAutoConnect: (vaultSession?: string | null) => Promise<boolean>;
-  getActiveSessionString: () => string;
-}) {
-  const {
-    connected, ssoUser, userProfile, driveConfig, topics, authuser,
-    setAuthuser, setSsoUser, setSsoAccounts, setSsoActiveId, setBooting,
-    hydrateCachedDrive, tryAutoConnect, getActiveSessionString,
-  } = params;
-
-  useEffect(() => {
-    (async () => {
-      ensureStreamWorkerReady().catch(() => {});
-      const slot = getCurrentAuthuser();
-      setAuthuser(slot);
-
-      const sso = await fetchSsoMe(slot);
-      if (sso.authenticated && sso.user) {
-        setSsoUser(sso.user);
-        setSsoAccounts(sso.accounts);
-        setSsoActiveId(sso.activeId || sso.user.id);
-
-        const vaultRes = await fetchDriveVault(slot);
-        if (vaultRes.hasVault && vaultRes.vault?.tgSession) {
-          hydrateCachedDrive(vaultRes.vault.driveConfig, vaultRes.vault.topics);
-          await tryAutoConnect(vaultRes.vault.tgSession);
-          setBooting(false);
-          return;
-        }
-
-        const legacySession = readLegacyLocalStorageSession();
-        if (legacySession) {
-          const ok = await tryAutoConnect(legacySession);
-          if (ok) scrubLegacyLocalStorageSessions();
-          setBooting(false);
-          return;
-        }
-      }
-
-      await tryAutoConnect();
-      setBooting(false);
-    })();
-  }, [hydrateCachedDrive, tryAutoConnect, setAuthuser, setSsoUser, setSsoAccounts, setSsoActiveId, setBooting]);
-
-  useEffect(() => {
-    if (!connected || !ssoUser) return;
-    const sessionStr = getActiveSessionString();
-    if (!sessionStr || sessionStr.length < 10) return;
-
-    void saveDriveVault(
-      {
-        tgSession: sessionStr,
-        tgUserId: userProfile?.id,
-        tgPhone: userProfile?.phone,
-        tgProfile: userProfile,
-        driveConfig,
-        topics,
-      },
-      authuser
-    );
-    scrubLegacyLocalStorageSessions();
-  }, [connected, ssoUser, userProfile, driveConfig, topics, authuser, getActiveSessionString]);
 }

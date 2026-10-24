@@ -1,22 +1,24 @@
-# TASK.md — Gothwad Drive v4.0 Upgrade Checklist
+# TASK.md — Gothwad Drive v4.0 Engineering & Resilience Checklist
 
 ## Completed Milestones
 
-- [x] **Phase 0 — Live Code Audit**:
-  - Audited `GothwadTech/drive` and `GothwadTech/accounts` (`account-menu.js`, SSO cookie/header contracts, D1 bootstrap conventions).
+- [x] **Phase 0 — Live Code Audit (`PLAN.md`)**:
+  - Audited `GothwadTech/drive` and `GothwadTech/accounts` and documented all 8 startup, login, encrypted-vault, and multi-account isolation root causes in `PLAN.md`.
 - [x] **Phase 1 — Remote-Safe D1 Schema (`sql/`)**:
-  - Created `sql/00_d1_console_bootstrap.sql` and `sql/01_drive_schema.sql` (`system_keys`, `drive_vaults`, `drive_shares`) with zero `PRAGMA` statements.
-- [x] **Phase 2 — Modular Cloudflare Worker (`worker/`)**:
-  - Created `worker/wrangler.toml` and root `wrangler.toml` bound to D1 `drive` (`dfefd813-244a-47f1-8f5a-8d5c15ba3162`) and route `drive.gothwadtech.com/api/*`.
-  - Implemented `worker/src/types.ts`, `schema.ts`, `crypto.ts`, `http.ts`, `auth.ts`, `vault.ts`, `shares.ts`, and `index.ts`.
-- [x] **Phase 3 — Silent SSO, Encrypted Session Vault & Account Switcher**:
-  - Implemented `src/config/brand.ts`, `src/lib/gothwadSso.ts`, and `src/lib/accountMenuWidget.ts`.
-  - Wired `/`, `/u/0..5/`, `?authuser=0..5`, and `/s/:shareId` routing plus `public/_redirects`.
-  - Replaced persistent `localStorage` raw session storage with `MemoryStorage` + AES-256-GCM D1 vault hydration and `< 30ms` cached folder tree painting.
-  - Integrated `window.GothwadAccountMenu` into `src/components/layout/Header.tsx` with clean MTProto client teardown on account switch.
-- [x] **Phase 4 — Rebrand & Strict `<= 500` Line Modular Refactor**:
-  - Split `PreviewModal.tsx`, `downloader.ts`, `Dashboard.tsx`, `App.tsx`, `index.css`, `useFiles.ts`, `radar.ts`, and `FileGrid.tsx` into focused modules so 100% of repository files are strictly `<= 500` lines.
-  - Preserved backward compatibility for both `#GothwadDrive_v1` and `#TgCloudDrive_v1` supergroup signatures.
-- [x] **Phase 5 — Automated Node 22 `node:sqlite` Test Suite & Documentation**:
-  - Created `tests/drive.test.mjs` covering all 9 verification gates.
-  - Updated `README.md`, `AGENTS.md`, `TASK.md`, and `HANDOVER.md`.
+  - Verified `sql/00_d1_console_bootstrap.sql` and `sql/01_drive_schema.sql` (`system_keys`, `drive_vaults`, `drive_shares`) with zero `PRAGMA` statements.
+- [x] **Phase 2 — Single-Identity-Verification Bootstrap & Hardened Worker (`worker/`)**:
+  - Added `GET /api/drive/bootstrap` verifying identity once via `env.ACCOUNTS_API_URL/api/auth/me` and returning both identity and vault state while forwarding all rotated `Set-Cookie` headers individually.
+  - Added versioned AES-256-GCM encryption (`key_version = 2` with `user_id` AAD, backward-compatible with `key_version = 1` and supporting `DRIVE_ENCRYPTION_KEY` + `VAULT_MASTER_KEY`).
+  - Distinguished `vaultStatus: "missing" | "ok" | "corrupt"`, added `409 vault_corrupt_locked` protection against silent overwrite of unreadable ciphertext, and added `409 account_mismatch` (`X-Gothwad-Expect-User`) and `409 tg_account_mismatch` guards.
+- [x] **Phase 3 — Generation-Safe Startup State Machine & Non-Blocking Readiness (`src/`)**:
+  - Implemented explicit startup phases (`checking_identity`, `confirmed_anonymous`, `identity_error`, `loading_vault`, `missing_vault`, `vault_error`, `telegram_connecting`, `telegram_error`, `ready`) in `src/hooks/useSsoVaultBootAndSync.ts` and `src/components/auth/StartupStatusView.tsx`.
+  - Bounded fetch and MTProto `connect()` / `getMe()` calls with timeouts and `AbortController` / generation cancellation (`src/hooks/useAuth.ts`, `src/lib/authHelpers.ts`).
+  - Made Telegram profile avatar downloads asynchronous in the background and deferred folder indexing, bot checks, and stream service worker registration.
+  - Eliminated `@mtcute/convert` Node externalization warnings and code-split `Dashboard`, `AppModals`, `PreviewModal`, `@mtcute`, and document preview libraries.
+- [x] **Phase 4 — Confirmed Vault Migration, Account Isolation & Non-Destructive Sign-Out**:
+  - Delayed legacy `localStorage` session scrubbing until after `saveDriveVaultDetailed` returns `{ ok: true }`, with manual retry and backup export on failure.
+  - Scoped IndexedDB `folder_index` keys in `src/lib/db.ts` by `${gothwadUserId}:${tgUserId}:${chatId}:${topicId}` and tagged legacy sessions by owner so Account B never imports Account A's session.
+  - Separated non-destructive local disconnect / SSO sign-out from explicit, user-confirmed `unlinkDriveVault`.
+- [x] **Phase 5 — Zero Lint Warnings & Behavioral Regression Tests (`tests/`)**:
+  - Resolved all 36 ESLint warnings (`npm run lint` passes with 0 warnings and 0 errors).
+  - Added `tests/behavioral.test.mjs` alongside `tests/drive.test.mjs` (15/15 passing tests, 100% of files `<= 500` lines, 100% pure English).

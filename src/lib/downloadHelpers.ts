@@ -6,8 +6,6 @@ import { getHelperClient } from "./client";
 import {
   getCachedBytes,
   appendCachedData,
-  getFullCachedChunk,
-  setFullCachedChunk,
 } from "./cache";
 
 const g = (typeof window !== "undefined" ? window : {}) as any;

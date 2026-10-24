@@ -12,8 +12,17 @@ export function useFileTransfer(
 ) {
   const [indexing, setIndexing] = useState(false);
   const indexingRef = useRef(false);
+  const indexingGenRef = useRef(0);
   const [indexingProgress, setIndexingProgress] = useState({ current: 0, total: 0 });
   const [favouriteFiles, setFavouriteFiles] = useState<DriveFile[]>([]);
+
+  const resetTransferState = useCallback(() => {
+    indexingGenRef.current++;
+    indexingRef.current = false;
+    setIndexing(false);
+    setIndexingProgress({ current: 0, total: 0 });
+    setFavouriteFiles([]);
+  }, []);
 
   const duplicateFilePayloadAndThumb = useCallback(
     async (
@@ -125,22 +134,22 @@ export function useFileTransfer(
       fileCache.current.delete(file.topicId);
       fileCache.current.delete(targetFolderId);
 
-      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId);
+      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId, config.chatId);
       if (sourceDbFiles) {
         const updatedSource = sourceDbFiles.filter((f) => f.id !== file.id);
-        await saveTopicFilesToDB(file.topicId, updatedSource);
+        await saveTopicFilesToDB(file.topicId, updatedSource, config.chatId);
         fileCache.current.set(file.topicId, updatedSource);
       } else {
-        await deleteTopicFilesFromDB(file.topicId);
+        await deleteTopicFilesFromDB(file.topicId, config.chatId);
       }
 
-      const targetDbFiles = await loadTopicFilesFromDB(targetFolderId);
+      const targetDbFiles = await loadTopicFilesFromDB(targetFolderId, config.chatId);
       if (targetDbFiles) {
         const updatedTarget = [movedFile, ...targetDbFiles.filter((f) => f.id !== movedFile.id)];
-        await saveTopicFilesToDB(targetFolderId, updatedTarget);
+        await saveTopicFilesToDB(targetFolderId, updatedTarget, config.chatId);
         fileCache.current.set(targetFolderId, updatedTarget);
       } else {
-        await deleteTopicFilesFromDB(targetFolderId);
+        await deleteTopicFilesFromDB(targetFolderId, config.chatId);
       }
 
       setFiles((prev) =>
@@ -192,13 +201,13 @@ export function useFileTransfer(
 
       fileCache.current.delete(targetFolderId);
 
-      const targetDbFiles = await loadTopicFilesFromDB(targetFolderId);
+      const targetDbFiles = await loadTopicFilesFromDB(targetFolderId, config.chatId);
       if (targetDbFiles) {
         const updatedTarget = [copiedFile, ...targetDbFiles.filter((f) => f.id !== copiedFile.id)];
-        await saveTopicFilesToDB(targetFolderId, updatedTarget);
+        await saveTopicFilesToDB(targetFolderId, updatedTarget, config.chatId);
         fileCache.current.set(targetFolderId, updatedTarget);
       } else {
-        await deleteTopicFilesFromDB(targetFolderId);
+        await deleteTopicFilesFromDB(targetFolderId, config.chatId);
       }
 
       setFiles((prev) => [copiedFile, ...prev]);
@@ -245,13 +254,16 @@ export function useFileTransfer(
       folders: { id: number; title: string }[]
     ) => {
       if (indexingRef.current) return;
+      const gen = ++indexingGenRef.current;
       indexingRef.current = true;
       setIndexing(true);
       setIndexingProgress({ current: 0, total: folders.length });
 
       for (const folder of folders) {
+        if (indexingGenRef.current !== gen) return;
         if (!fileCache.current.has(folder.id)) {
-          const dbFiles = await loadTopicFilesFromDB(folder.id);
+          const dbFiles = await loadTopicFilesFromDB(folder.id, config.chatId);
+          if (indexingGenRef.current !== gen) return;
           if (dbFiles) {
             fileCache.current.set(folder.id, dbFiles);
           }
@@ -265,15 +277,17 @@ export function useFileTransfer(
 
       const CONCURRENCY = 1;
       const worker = async () => {
-        while (pending.length > 0) {
+        while (pending.length > 0 && indexingGenRef.current === gen) {
           const folder = pending.shift();
           if (!folder) break;
           try {
             await ensureConnected();
+            if (indexingGenRef.current !== gen) break;
             const existing = fileCache.current.get(folder.id);
             const result = await listFilesInTopic(client, config, folder.id, existing);
+            if (indexingGenRef.current !== gen) break;
             fileCache.current.set(folder.id, result);
-            void saveTopicFilesToDB(folder.id, result);
+            void saveTopicFilesToDB(folder.id, result, config.chatId);
             if (activeTopicIdRef.current === folder.id) {
               setFiles(result);
             }
@@ -329,13 +343,13 @@ export function useFileTransfer(
 
       for (const topicId of topicIds) {
         fileCache.current.delete(topicId);
-        const sourceDbFiles = await loadTopicFilesFromDB(topicId);
+        const sourceDbFiles = await loadTopicFilesFromDB(topicId, config.chatId);
         if (sourceDbFiles) {
           const updatedSource = sourceDbFiles.filter((item) => !toDeleteIds.has(item.id));
-          await saveTopicFilesToDB(topicId, updatedSource);
+          await saveTopicFilesToDB(topicId, updatedSource, config.chatId);
           fileCache.current.set(topicId, updatedSource);
         } else {
-          await deleteTopicFilesFromDB(topicId);
+          await deleteTopicFilesFromDB(topicId, config.chatId);
         }
       }
 
@@ -408,5 +422,6 @@ export function useFileTransfer(
     deleteFilesBatch,
     loadFavourites,
     toggleFavourite,
+    resetTransferState,
   };
 }

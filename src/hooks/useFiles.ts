@@ -65,7 +65,7 @@ export function useFiles() {
       setLoadingFiles(true);
       try {
         if (!force) {
-          const cached = await loadTopicFilesFromDB(topicId);
+          const cached = await loadTopicFilesFromDB(topicId, config.chatId);
           if (cached && cached.length > 0) {
             fileCache.current.set(topicId, cached);
             setFiles(cached);
@@ -77,7 +77,7 @@ export function useFiles() {
         const existing = force ? null : fileCache.current.get(topicId);
         const result = await listFilesInTopic(client, config, topicId, existing);
         fileCache.current.set(topicId, result);
-        void saveTopicFilesToDB(topicId, result);
+        void saveTopicFilesToDB(topicId, result, config.chatId);
         setFiles(result);
       } finally {
         setLoadingFiles(false);
@@ -339,13 +339,13 @@ export function useFiles() {
       const ok = await deleteDriveFile(client, config, file);
       if (!ok) return false;
       fileCache.current.delete(file.topicId);
-      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId);
+      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId, config.chatId);
       if (sourceDbFiles) {
         const updatedSource = sourceDbFiles.filter((item) => item.id !== file.id);
-        await saveTopicFilesToDB(file.topicId, updatedSource);
+        await saveTopicFilesToDB(file.topicId, updatedSource, config.chatId);
         fileCache.current.set(file.topicId, updatedSource);
       } else {
-        await deleteTopicFilesFromDB(file.topicId);
+        await deleteTopicFilesFromDB(file.topicId, config.chatId);
       }
       setFiles((prev) => prev.filter((item) => item.id !== file.id));
       return true;
@@ -380,15 +380,32 @@ export function useFiles() {
           cached.map((item) => (item.id === file.id ? renamed : item))
         );
       }
-      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId);
+      const sourceDbFiles = await loadTopicFilesFromDB(file.topicId, config.chatId);
       if (sourceDbFiles) {
         const updatedSource = sourceDbFiles.map((item) => (item.id === file.id ? renamed : item));
-        await saveTopicFilesToDB(file.topicId, updatedSource);
+        await saveTopicFilesToDB(file.topicId, updatedSource, config.chatId);
       }
       return true;
     },
     []
   );
+
+  const resetFiles = useCallback(() => {
+    uploadAbortControllers.current.forEach((c) => c.abort());
+    uploadAbortControllers.current.clear();
+    downloadAbortControllers.current.forEach((c) => c.abort());
+    downloadAbortControllers.current.clear();
+    batchAbortController.current?.abort();
+    batchAbortController.current = null;
+    uploadQueue.current = [];
+    fileCache.current.clear();
+    activeTopicIdRef.current = null;
+    setFiles([]);
+    setLoadingFiles(false);
+    setUploads([]);
+    setDownloadProgress(null);
+    transfer.resetTransferState();
+  }, [transfer]);
 
   const clearFinishedUploads = useCallback(() => {
     setUploads((prev) => prev.filter((u) => u.status !== "done"));
@@ -447,5 +464,6 @@ export function useFiles() {
     copyFile: transfer.copyFile,
     moveFilesBatch: transfer.moveFilesBatch,
     copyFilesBatch: transfer.copyFilesBatch,
+    resetFiles,
   };
 }

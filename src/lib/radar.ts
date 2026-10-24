@@ -119,7 +119,10 @@ export async function scanForDriveGroup(
   }
   const userDriveKey = `${LS_DRIVE}_${userId}`;
 
-  const cached = localStorage.getItem(userDriveKey) || localStorage.getItem(LS_DRIVE);
+  const cached =
+    userId !== "default"
+      ? localStorage.getItem(userDriveKey)
+      : localStorage.getItem(LS_DRIVE);
   if (cached) {
     try {
       const parsed = JSON.parse(cached) as DriveConfig;
