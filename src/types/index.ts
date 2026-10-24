@@ -78,6 +78,7 @@ export interface SavedAccount {
   apiId: number;
   avatarUrl: string | null;
   phone?: string;
+  gothwadUserId?: string;
   updatedAt: number;
 }
 
@@ -124,6 +125,7 @@ export interface DriveVaultData {
   username: string;
   session: string | null;
   tgSession?: string | null;
+  keyVersion?: number;
   tgProfile: {
     id: string;
     username: string;
@@ -135,6 +137,67 @@ export interface DriveVaultData {
   storageUsedBytes: number;
   fileCount: number;
   updatedAt?: string;
+}
+
+export type StartupPhase =
+  | "checking_identity"
+  | "confirmed_anonymous"
+  | "anonymous"
+  | "identity_error"
+  | "loading_vault"
+  | "missing_vault"
+  | "vault_missing"
+  | "vault_error"
+  | "telegram_connecting"
+  | "telegram_error"
+  | "ready";
+
+export type ServiceErrorKind =
+  | "none"
+  | "routing_html"
+  | "http_5xx"
+  | "rate_limited"
+  | "network"
+  | "timeout"
+  | "malformed_json"
+  | "redirect"
+  | "corrupt_ciphertext"
+  | "account_mismatch"
+  | "tg_account_mismatch";
+
+export type VaultStatusKind =
+  | "unknown"
+  | "none"
+  | "empty"
+  | "missing"
+  | "ok"
+  | "decrypt_error"
+  | "corrupt"
+  | "error";
+
+export interface StartupState {
+  phase: StartupPhase;
+  generation?: number;
+  authuser?: number;
+  errorKind: ServiceErrorKind;
+  errorMessage: string | null;
+  vaultStatus: VaultStatusKind;
+  vaultCorrupt: boolean;
+  canRetry?: boolean;
+  legacySessionAvailable?: boolean;
+  hasLegacyCandidate?: boolean;
+  legacyCandidateOwned?: boolean;
+}
+
+export interface VaultSyncState {
+  status?: "idle" | "saving" | "saved" | "error";
+  saving: boolean;
+  saveError: string | null;
+  saveErrorKind: ServiceErrorKind;
+  migrationPending: boolean;
+  errorKind?: ServiceErrorKind;
+  errorMessage?: string | null;
+  lastSavedAt?: string | number | null;
 }
 
 export interface GothwadSsoState {

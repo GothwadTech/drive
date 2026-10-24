@@ -41,6 +41,7 @@ interface HeaderProps {
   onSwitchSsoAccount?: (acct: GothwadAccountItem) => void | Promise<void>;
   onSignOutSsoSlot?: (slotId: string) => void | Promise<void>;
   onSignOutAllSso?: () => void | Promise<void>;
+  onUnlinkVault?: () => void | Promise<void>;
 }
 
 export function Header({
@@ -71,6 +72,7 @@ export function Header({
   onSwitchSsoAccount,
   onSignOutSsoSlot,
   onSignOutAllSso,
+  onUnlinkVault,
 }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -192,6 +194,9 @@ export function Header({
             : []),
           ...(onOpenReceiveShare
             ? [{ label: "Redeem Shared Link or Hash", onClick: () => onOpenReceiveShare() }]
+            : []),
+          ...(onUnlinkVault
+            ? [{ label: "Unlink Telegram Cloud Vault...", onClick: () => void onUnlinkVault() }]
             : []),
         ],
       }

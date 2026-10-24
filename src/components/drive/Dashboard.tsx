@@ -32,7 +32,7 @@ export function Dashboard(props: DashboardProps) {
     triggerToast, favouriteChunks = new Set(), onToggleLike, onShare,
     fileSharingEnabled, onToggleFileSharing, onOpenReceiveShare, ssoUser,
     ssoAccounts, ssoActiveId, authuser = 0, onSwitchSsoAccount,
-    onSignOutSsoSlot, onSignOutAllSso,
+    onSignOutSsoSlot, onSignOutAllSso, onUnlinkVault,
   } = props;
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -284,6 +284,7 @@ export function Dashboard(props: DashboardProps) {
         onSwitchSsoAccount={onSwitchSsoAccount}
         onSignOutSsoSlot={onSignOutSsoSlot}
         onSignOutAllSso={onSignOutAllSso}
+        onUnlinkVault={onUnlinkVault}
       />
 
       <div className="flex flex-1 overflow-hidden">

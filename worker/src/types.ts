@@ -23,6 +23,7 @@ export interface Env {
   ACCOUNTS_API_URL?: string;
   ACCOUNTS_WEB_URL?: string;
   DRIVE_ENCRYPTION_KEY?: string;
+  VAULT_MASTER_KEY?: string;
   TELEGRAM_API_ID?: string;
   TELEGRAM_API_HASH?: string;
   ALLOWED_ORIGINS?: string;

@@ -2,6 +2,21 @@
  * =============================================================================
  * GOTHWAD DRIVE — AES-256-GCM + HKDF-SHA256 VAULT ENCRYPTION & NANO-ID
  * =============================================================================
+ *
+ * Security & Key Versioning Model:
+ * - Primary secret (`key_version = 3`): Reads `env.DRIVE_ENCRYPTION_KEY`
+ *   (or alias `env.VAULT_MASTER_KEY` for operator compatibility).
+ * - Automatic bootstrap fallback (`key_version = 1`): If no Worker secret is
+ *   configured yet, generates and persists a 256-bit CSPRNG key in D1
+ *   `system_keys`. Note: `system_keys` lives in the same D1 database as
+ *   `drive_vaults`, so operators should configure `DRIVE_ENCRYPTION_KEY` in
+ *   Cloudflare Worker Secrets for separation between database storage and
+ *   key material.
+ * - Per-user HKDF-SHA256 key derivation (`salt = gothwad-drive-user:<user_id>`)
+ *   plus AES-256-GCM `additionalData = gothwad-drive-vault:v1:<user_id>`.
+ * - Backward-compatible decryption: tries AES-GCM with `additionalData` first,
+ *   then falls back to legacy v1/v2 decryption (without `additionalData`) using
+ *   the same per-user HKDF key so existing vaults never break.
  */
 
 import type { D1Database, Env } from './types.ts';
@@ -27,11 +42,17 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-/**
- * Resolve or initialize the fallback system wrapping key in `system_keys`
- * so deploy #1 works out of the box even before `DRIVE_ENCRYPTION_KEY` is set.
- */
-async function getOrCreateSystemKeyMaterial(db: D1Database): Promise<{ material: string; version: number }> {
+export function buildVaultAad(userId: string): Uint8Array {
+  return new TextEncoder().encode(`gothwad-drive-vault:v1:${userId}`);
+}
+
+function getConfiguredMasterSecret(env: Env): string {
+  return (env.DRIVE_ENCRYPTION_KEY || env.VAULT_MASTER_KEY || '').trim();
+}
+
+async function getOrCreateSystemKeyMaterial(
+  db: D1Database,
+): Promise<{ material: string; version: number }> {
   const existing = await db
     .prepare('SELECT key_material, key_version FROM system_keys WHERE key_id = ? LIMIT 1')
     .bind(SYSTEM_KEY_ID)
@@ -92,9 +113,9 @@ export async function encryptVaultSession(
   userId: string,
   plaintextSession: string,
 ): Promise<{ ciphertextBase64: string; ivBase64: string; keyVersion: number }> {
-  const envSecret = (env.DRIVE_ENCRYPTION_KEY || '').trim();
+  const envSecret = getConfiguredMasterSecret(env);
   let secretToUse = envSecret;
-  let keyVersion = 2;
+  let keyVersion = 3;
 
   if (!secretToUse) {
     const sys = await getOrCreateSystemKeyMaterial(db);
@@ -105,10 +126,11 @@ export async function encryptVaultSession(
   const aesKey = await deriveUserAesKey(secretToUse, userId);
   const iv = new Uint8Array(12);
   crypto.getRandomValues(iv);
+  const additionalData = buildVaultAad(userId);
 
   const encodedPlaintext = new TextEncoder().encode(plaintextSession);
   const cipherBuffer = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv, additionalData },
     aesKey,
     encodedPlaintext,
   );
@@ -138,9 +160,12 @@ export async function decryptVaultSession(
   } catch {
     return null;
   }
+  if (cipherBytes.byteLength < 16 || ivBytes.byteLength < 8) {
+    return null;
+  }
 
   const candidateSecrets: string[] = [];
-  const envSecret = (env.DRIVE_ENCRYPTION_KEY || '').trim();
+  const envSecret = getConfiguredMasterSecret(env);
 
   if (keyVersion >= 2 && envSecret) {
     candidateSecrets.push(envSecret);
@@ -158,9 +183,30 @@ export async function decryptVaultSession(
     candidateSecrets.push(envSecret);
   }
 
+  const additionalData = buildVaultAad(userId);
+
   for (const secret of candidateSecrets) {
+    let aesKey: CryptoKey;
     try {
-      const aesKey = await deriveUserAesKey(secret, userId);
+      aesKey = await deriveUserAesKey(secret, userId);
+    } catch {
+      continue;
+    }
+
+    // 1. Try current v3 AES-GCM with explicit per-user AAD
+    try {
+      const plainBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: ivBytes, additionalData },
+        aesKey,
+        cipherBytes,
+      );
+      return new TextDecoder().decode(plainBuffer);
+    } catch {
+      // Fall through to legacy v1/v2 without additionalData
+    }
+
+    // 2. Legacy v1/v2 compatibility (encrypted with per-user HKDF salt only)
+    try {
       const plainBuffer = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: ivBytes },
         aesKey,
@@ -168,7 +214,7 @@ export async function decryptVaultSession(
       );
       return new TextDecoder().decode(plainBuffer);
     } catch {
-      // Try next candidate key if rotation occurred
+      // Try next candidate secret if key rotation occurred
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { DriveFile, DriveConfig, TopicFolder } from "../../types";
 import { formatBytes } from "../../lib/manifest";
 import { Modal } from "../ui/Modal";
@@ -52,31 +52,7 @@ export function ReceiveShareModal({
   const [isFolderDropdownOpen, setIsFolderDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (initialHash) {
-      void handleFetchFile(initialHash);
-    }
-  }, [initialHash]);
-
-  useEffect(() => {
-    if (activeFolderId) {
-      setSelectedTopicId(activeFolderId);
-    } else if (topics.length > 0 && selectedTopicId === null) {
-      setSelectedTopicId(topics[0].id);
-    }
-  }, [activeFolderId, topics, selectedTopicId]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsFolderDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleFetchFile = async (targetHash: string) => {
+  const handleFetchFile = useCallback(async (targetHash: string) => {
     const cleanHash = targetHash.trim();
     if (!cleanHash) {
       setError("Please enter a valid share token hash or link.");
@@ -114,7 +90,25 @@ export function ReceiveShareModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [workerUrl]);
+
+  useEffect(() => {
+    if (!initialHash) return;
+    const timer = window.setTimeout(() => {
+      void handleFetchFile(initialHash);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialHash, handleFetchFile]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsFolderDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handlePasteFromClipboard = async () => {
     try {

@@ -1,12 +1,15 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import type { TelegramClient } from "@mtcute/web";
 import type { DriveConfig, DriveFile, TopicFolder } from "../../types";
-import { PreviewModal } from "./PreviewModal";
 import { MoveCopyModal } from "./MoveCopyModal";
 import { ShareModal } from "./ShareModal";
 import { ReceiveShareModal } from "./ReceiveShareModal";
 import { RenameModal } from "./RenameModal";
 import { Modal } from "../ui/Modal";
+
+const PreviewModal = lazy(() =>
+  import("./PreviewModal").then((m) => ({ default: m.PreviewModal }))
+);
 
 interface AppModalsProps {
   client: TelegramClient | null;
@@ -96,20 +99,22 @@ export const AppModals: React.FC<AppModalsProps> = ({
 }) => (
   <>
     {previewFile && (
-      <PreviewModal
-        key={previewFile.id}
-        file={previewFile}
-        client={client}
-        driveConfig={driveConfig}
-        url={previewUrl}
-        progress={previewProgress}
-        error={previewError}
-        isLiked={favouriteChunks.has(previewFile.manifest.chunks.join(","))}
-        onToggleLike={() => onToggleLike(previewFile)}
-        onOpenMoveCopy={() => setPreviewMoveCopyFile(previewFile)}
-        onDownload={() => onDownload(previewFile)}
-        onClose={onClosePreview}
-      />
+      <Suspense fallback={null}>
+        <PreviewModal
+          key={previewFile.id}
+          file={previewFile}
+          client={client}
+          driveConfig={driveConfig}
+          url={previewUrl}
+          progress={previewProgress}
+          error={previewError}
+          isLiked={favouriteChunks.has(previewFile.manifest.chunks.join(","))}
+          onToggleLike={() => onToggleLike(previewFile)}
+          onOpenMoveCopy={() => setPreviewMoveCopyFile(previewFile)}
+          onDownload={() => onDownload(previewFile)}
+          onClose={onClosePreview}
+        />
+      </Suspense>
     )}
 
     {previewMoveCopyFile && (

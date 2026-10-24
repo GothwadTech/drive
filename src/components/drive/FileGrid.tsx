@@ -45,12 +45,19 @@ export function FileGrid({
   onOpenDetails,
   gridBoxSize = "large",
 }: FileGridProps) {
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageState, setPageState] = useState<{ filesRef: DriveFile[]; page: number }>({
+    filesRef: files,
+    page: 1,
+  });
+  const currentPage = pageState.filesRef === files ? pageState.page : 1;
+  const setCurrentPage = (nextPage: number | ((p: number) => number)) => {
+    setPageState((prev) => {
+      const base = prev.filesRef === files ? prev.page : 1;
+      const resolved = typeof nextPage === "function" ? nextPage(base) : nextPage;
+      return { filesRef: files, page: resolved };
+    });
+  };
   const [pageSize, setPageSize] = useState<number>(24);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [files]);
 
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
@@ -165,7 +172,16 @@ export function FileGrid({
     groups.get(key)!.push(f);
   }
   const sortedKeys = Array.from(groups.keys()).sort((a, b) => b.localeCompare(a));
-  let globalIdx = 0;
+  const sections = sortedKeys.reduce<
+    Array<{ key: string; sectionFiles: DriveFile[]; label: string; startIdx: number }>
+  >((acc, key) => {
+    const sectionFiles = groups.get(key)!;
+    const d = new Date(parseInt(key.split("-")[0]), parseInt(key.split("-")[1]) - 1);
+    const label = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const prevEnd = acc.length > 0 ? acc[acc.length - 1].startIdx + acc[acc.length - 1].sectionFiles.length : 0;
+    acc.push({ key, sectionFiles, label, startIdx: prevEnd });
+    return acc;
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -209,13 +225,7 @@ export function FileGrid({
       </div>
 
       <div className="space-y-8 pb-6">
-        {sortedKeys.map((key) => {
-          const sectionFiles = groups.get(key)!;
-          const d = new Date(parseInt(key.split("-")[0]), parseInt(key.split("-")[1]) - 1);
-          const label = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-          const startIdx = globalIdx;
-          globalIdx += sectionFiles.length;
-
+        {sections.map(({ key, sectionFiles, label, startIdx }) => {
           return (
             <div key={key} className="space-y-3">
               <h3 className="text-[11px] font-semibold uppercase tracking-widest text-md-on-surface-variant select-none px-1">

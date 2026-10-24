@@ -89,7 +89,7 @@ export function PreviewModal({
   const [epubError, setEpubError] = useState<string | null>(null);
   const epubContainerRef = useRef<HTMLDivElement | null>(null);
   const renditionRef = useRef<any>(null);
-  const [epubToc, setEpubToc] = useState<any[]>([]);
+  const [epubToc] = useState<any[]>([]);
   const [epubCurrentChapterRef, setEpubCurrentChapterRef] = useState<string>("");
   const [epubProgress, setEpubProgress] = useState<string>("0%");
   const [epubTheme, setEpubTheme] = useState<string>("dark");

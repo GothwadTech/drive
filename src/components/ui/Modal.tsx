@@ -20,13 +20,13 @@ export function Modal({
   const [closing, setClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setClosing(true);
     setTimeout(() => {
       setClosing(false);
       onClose();
     }, 220);
-  };
+  }, [onClose]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -40,7 +40,7 @@ export function Modal({
       document.removeEventListener("keydown", handleEsc);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   // Focus trap
   useEffect(() => {

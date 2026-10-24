@@ -1,22 +1,13 @@
 import { TelegramClient, MemoryStorage } from "@mtcute/web";
 import { convertFromGramjsSession } from "@mtcute/convert";
-import { getApiCredentials, LS_SESSION, DEVICE_MODEL, SYSTEM_VERSION, APP_VERSION } from "../config/telegram";
+import { getApiCredentials, LS_SESSION } from "../config/telegram";
 
 let _client: TelegramClient | null = null;
 let _cachedSessionString: string = "";
-let _cloudVaultActive = false;
 const _sessionPersistListeners = new Set<(token: string) => void>();
 
-export function setMemorySession(session: string | null, vaultActive = true): void {
+export function setMemorySession(session: string | null): void {
   _cachedSessionString = session?.trim() || "";
-  _cloudVaultActive = vaultActive;
-  if (vaultActive) {
-    try {
-      localStorage.removeItem(LS_SESSION);
-    } catch {
-      // ignore
-    }
-  }
 }
 
 export function getMemorySession(): string {
@@ -44,7 +35,6 @@ export function setClient(client: TelegramClient): void {
   _client = client;
   _clientInitPromise = null;
   _isConnected = true;
-  void warmupHelperClients();
 }
 
 /**
@@ -118,11 +108,6 @@ export async function persistSession(): Promise<string> {
   try {
     const token = await _client.exportSession();
     _cachedSessionString = token;
-    if (_cloudVaultActive) {
-      localStorage.removeItem(LS_SESSION);
-    } else {
-      localStorage.setItem(LS_SESSION, token);
-    }
     _sessionPersistListeners.forEach((fn) => {
       try {
         fn(token);
@@ -133,12 +118,12 @@ export async function persistSession(): Promise<string> {
     return token;
   } catch (err) {
     console.warn("Failed to export session:", err);
-    return _cachedSessionString || localStorage.getItem(LS_SESSION) || "";
+    return _cachedSessionString;
   }
 }
 
 export function getCurrentSessionString(): string {
-  return _cachedSessionString || localStorage.getItem(LS_SESSION) || "";
+  return _cachedSessionString;
 }
 
 /**
@@ -156,7 +141,6 @@ export async function destroyClient(): Promise<void> {
   _clientInitPromise = null;
   _isConnected = false;
   _cachedSessionString = "";
-  localStorage.removeItem(LS_SESSION);
 }
 
 /**

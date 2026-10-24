@@ -192,6 +192,7 @@ export const DocxPreviewView: React.FC<DocxPreviewViewProps> = ({
   </div>
 );
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePreviewDocumentLoaders(params: {
   file: DriveFile;
   url: string | null;

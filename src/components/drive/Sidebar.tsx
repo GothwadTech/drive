@@ -81,7 +81,7 @@ export function Sidebar({
   allFiles,
   indexing,
   indexingProgress,
-  onOpenReceiveShare,
+  onOpenReceiveShare: _onOpenReceiveShare,
 }: SidebarProps) {
   return (
     <aside className={className || "w-64 shrink-0 hidden lg:flex flex-col border-r border-md-outline-variant/30 bg-md-surface-container-low h-[calc(100vh-4rem)] select-none"}>

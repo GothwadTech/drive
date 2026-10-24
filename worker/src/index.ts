@@ -8,7 +8,12 @@ import type { Env } from './types.ts';
 import { ensureSchema } from './schema.ts';
 import { buildCorsHeaders, errorResponse, jsonResponse } from './http.ts';
 import { handleMeEndpoint, proxyAccountsAuthMutation } from './auth.ts';
-import { handleDeleteVault, handleGetVault, handlePutVault } from './vault.ts';
+import {
+  handleBootstrap,
+  handleDeleteVault,
+  handleGetVault,
+  handlePutVault,
+} from './vault.ts';
 import { handleCreateShare, handleGetShare } from './shares.ts';
 
 export async function handleWorkerRequest(
@@ -59,6 +64,10 @@ export async function handleWorkerRequest(
     await ensureSchema(env.DB);
   }
 
+  if (path === '/api/drive/bootstrap' && method === 'GET') {
+    return handleBootstrap(request, env, fetchImpl);
+  }
+
   if (path === '/api/drive/vault') {
     if (method === 'GET') return handleGetVault(request, env, fetchImpl);
     if (method === 'PUT') return handlePutVault(request, env, fetchImpl);
@@ -79,7 +88,12 @@ export async function handleWorkerRequest(
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    return handleWorkerRequest(request, env);
+  async fetch(
+    request: Request,
+    env: Env,
+    _ctx?: unknown,
+    fetchImpl?: typeof fetch,
+  ): Promise<Response> {
+    return handleWorkerRequest(request, env, fetchImpl ?? globalThis.fetch);
   },
 };
